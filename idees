@@ -7,11 +7,11 @@ Arbre de compétence :
 - Par défaut : Amélioration des dégats (10) , amélioration des PV (10).
 - Combat : Sangsue (10 -> 15% de récuperer des PV lorsque ennemi tué), Juggernaut (PV en dessous de 25%, +40% de dégat supplémentaire)
 - Arc : Amélioration de la vitesse de tir (100% -> 15%), ricochet (2-3 cibles), tir transperçant, poison (-10% de PV/seconde en 3 secondes)
-- Epée : Amélioration de la vitesse d'attaque (100% -> 10s), dégat critique (5 -> 10 de dégat supplémentaire (+200%)
+- Epée : Amélioration de la vitesse d'attaque (100% -> 10s), dégat critique (5 -> 10 de dégat supplémentaire) (+200%)
 
 Items : 
 - Combat : Epée courte (3 dégats)(1.5s cadence de tir), Epée lourde (10 dégats + knockback 2 cases)(4s de cadence de tir). Arc léger (2 dégats)(3s cadence de tir), Arc lourd (5 dégats)(5s cadence de tir)
-- Consummable : Bandage (+2 coeurs), Potion de Vie (1 coeur/0.5s pendant 5 secondes), medkit (Entiereté des coeurs en 10 secondes), fiole de rage (10s = Dégat doublé)
+- Consummable : Pomme (+0.5 coeurs) Bandage (+2 coeurs), Potion de Vie (1 coeur/0.5s pendant 5 secondes), medkit (Entiereté des coeurs en 10 secondes), fiole de rage (10s = Dégat doublé)
 - Défense : Bouclier (Tank 10 PV), Parade épée (Tank 5 PV puis stun), Armure cuir (-10%), Armure fer (-30% de dégat).
 
 
@@ -23,8 +23,17 @@ Zones:
 - Montagneuses : Chèvre, Mouton
 - Eatser egg mondet : Mondet 
 
-
-
 Mouvement de base : Courir, taper (coup de poing), s'accroupir
 Mouvement à débloquer :  charger attaque (coup de poing, épée, arc...) , concentration (régénerer la vie), dasher (1 dash) , glissade (courir puis accroupir) , flashstep (limité à 3 step)
 
+Paramètres :
+- Déplacement par défaut du personnage : Courir/Marche
+- Plein écran/Fenêtré
+- Luminosité 0-100
+- Volume générale 0-100
+- Volume Musique : 0-100
+- Volume SFX : 0-100
+- Volume Interface 0-100
+- Langue : Français (par défault)/ Anglais
+- Afficher les dégats 
+- Keybinding
