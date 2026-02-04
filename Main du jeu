@@ -24,16 +24,25 @@ class Joueur:
         self.vies = 3
         self.invincible = 0  # délai après un coup
 
-    def deplacer(self):
+     def deplacer(self):
         touches = pygame.key.get_pressed()
-        if touches[pygame.K_LEFT]:
+
+        # Gauche : flèche gauche ou Q
+        if touches[pygame.K_LEFT] or touches[pygame.K_q]:
             self.rect.x -= self.vitesse
-        if touches[pygame.K_RIGHT]:
+
+        # Droite : flèche droite ou D
+        if touches[pygame.K_RIGHT] or touches[pygame.K_d]:
             self.rect.x += self.vitesse
-        if touches[pygame.K_UP]:
+
+        # Haut : flèche haut ou Z
+        if touches[pygame.K_UP] or touches[pygame.K_z]:
             self.rect.y -= self.vitesse
-        if touches[pygame.K_DOWN]:
+
+        # Bas : flèche bas ou S
+        if touches[pygame.K_DOWN] or touches[pygame.K_s]:
             self.rect.y += self.vitesse
+
 
     def dessiner(self):
         pygame.draw.rect(ecran, VERT, self.rect)
