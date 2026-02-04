@@ -26,14 +26,18 @@ class Joueur:
 
     def deplacer(self):
         touches = pygame.key.get_pressed()
-        if touches[pygame.K_LEFT]:
+
+        if touches[pygame.K_LEFT] or touches[pygame.K_q]:
             self.rect.x -= self.vitesse
-        if touches[pygame.K_RIGHT]:
+        if touches[pygame.K_RIGHT] or touches[pygame.K_d]:
             self.rect.x += self.vitesse
-        if touches[pygame.K_UP]:
+        if touches[pygame.K_UP] or touches[pygame.K_z]:
             self.rect.y -= self.vitesse
-        if touches[pygame.K_DOWN]:
+        if touches[pygame.K_DOWN] or touches[pygame.K_s]:
             self.rect.y += self.vitesse
+
+        # Empêcher de sortir de l'écran
+        self.rect.clamp_ip(ecran.get_rect())
 
     def dessiner(self):
         pygame.draw.rect(ecran, VERT, self.rect)
@@ -82,7 +86,7 @@ while True:
     # Collision joueur / ennemi
     if joueur.rect.colliderect(ennemi.rect) and joueur.invincible == 0:
         joueur.vies -= 1
-        joueur.invincible = FPS  # 1 seconde d'invincibilité
+        joueur.invincible = FPS
         print("Aïe ! Vie restante :", joueur.vies)
 
     if joueur.invincible > 0:
@@ -97,4 +101,4 @@ while True:
     joueur.dessiner()
     ennemi.dessiner()
     afficher_coeurs(joueur)
-    pygame.display.flip ()
+    pygame.display.flip()
