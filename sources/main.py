@@ -4,6 +4,8 @@ import sys
 pygame.init()
 
 # Constantes
+
+
 LARGEUR = 800
 HAUTEUR = 600
 FPS = 60
@@ -11,10 +13,14 @@ FPS = 60
 NOIR = (0, 0, 0)
 VERT = (0, 200, 0)
 ROUGE = (200, 0, 0)
+BLANC = (255, 255, 255)
 
 ecran = pygame.display.set_mode((LARGEUR, HAUTEUR))
 pygame.display.set_caption("Link.exe")
 clock = pygame.time.Clock()
+
+# État du jeu
+ETAT_JEU = "jeu"  # "jeu" ou "inventaire"
 
 
 class Joueur:
@@ -22,7 +28,7 @@ class Joueur:
         self.rect = pygame.Rect(380, 280, 40, 40)
         self.vitesse = 5
         self.vies = 3
-        self.invincible = 0  # délai après un coup
+        self.invincible = 0
 
     def deplacer(self):
         touches = pygame.key.get_pressed()
@@ -36,7 +42,7 @@ class Joueur:
         if touches[pygame.K_DOWN] or touches[pygame.K_s]:
             self.rect.y += self.vitesse
 
-        # Empêcher de sortir de l'écran
+        # Bloquer dans l'écran
         self.rect.clamp_ip(ecran.get_rect())
 
     def dessiner(self):
@@ -68,6 +74,25 @@ def afficher_coeurs(joueur):
         pygame.draw.rect(ecran, ROUGE, coeur)
 
 
+def afficher_inventaire():
+    overlay = pygame.Surface((LARGEUR, HAUTEUR))
+    overlay.set_alpha(200)
+    overlay.fill((30, 30, 30))
+    ecran.blit(overlay, (0, 0))
+
+    font_titre = pygame.font.Font(None, 50)
+    font_txt = pygame.font.Font(None, 30)
+
+    titre = font_titre.render("INVENTAIRE", True, BLANC)
+    ecran.blit(titre, (LARGEUR // 2 - 120, 60))
+
+    ecran.blit(font_txt.render("- Sword", True, BLANC), (200, 160))
+    ecran.blit(font_txt.render("- Key", True, BLANC), (200, 210))
+    ecran.blit(font_txt.render("- Health Potion", True, BLANC), (200, 260))
+
+    ecran.blit(font_txt.render("E ou ÉCHAP pour revenir", True, BLANC), (200, 350))
+
+
 joueur = Joueur()
 ennemi = Ennemi()
 
@@ -80,25 +105,38 @@ while True:
             pygame.quit()
             sys.exit()
 
-    joueur.deplacer()
-    ennemi.deplacer()
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_e:
+                ETAT_JEU = "inventaire" if ETAT_JEU == "jeu" else "jeu"
 
-    # Collision joueur / ennemi
-    if joueur.rect.colliderect(ennemi.rect) and joueur.invincible == 0:
-        joueur.vies -= 1
-        joueur.invincible = FPS
-        print("Aïe ! Vie restante :", joueur.vies)
+            if event.key == pygame.K_ESCAPE and ETAT_JEU == "inventaire":
+                ETAT_JEU = "jeu"
 
-    if joueur.invincible > 0:
-        joueur.invincible -= 1
+    # Mise à jour UNIQUEMENT si on est dans le jeu
+    if ETAT_JEU == "jeu":
+        joueur.deplacer()
+        ennemi.deplacer()
 
-    if joueur.vies <= 0:
-        print("GAME OVER")
-        pygame.quit()
-        sys.exit()
+        if joueur.rect.colliderect(ennemi.rect) and joueur.invincible == 0:
+            joueur.vies -= 1
+            joueur.invincible = FPS
+            print("Aïe ! Vie restante :", joueur.vies)
 
+        if joueur.invincible > 0:
+            joueur.invincible -= 1
+
+        if joueur.vies <= 0:
+            print("GAME OVER")
+            pygame.quit()
+            sys.exit()
+
+    # Affichage
     ecran.fill(NOIR)
     joueur.dessiner()
     ennemi.dessiner()
     afficher_coeurs(joueur)
+
+    if ETAT_JEU == "inventaire":
+        afficher_inventaire()
+
     pygame.display.flip()
