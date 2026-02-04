@@ -23,8 +23,8 @@ Zones:
 - Montagneuses : Chèvre, Mouton
 - Eatser egg mondet : Mondet 
 
-Mouvement de base : Courir, taper (coup de poing), s'accroupir
-Mouvement à débloquer :  charger attaque (coup de poing, épée, arc...) , concentration (régénerer la vie), dasher (1 dash) , glissade (courir puis accroupir) , flashstep (limité à 3 step)
+Mouvement de base : Courir, taper (coup de poing)(1 dégat), s'accroupir
+Mouvement à débloquer :  charger attaque (coup de poing, épée, arc...)(=25% de dégat) , concentration (régénerer la vie), dasher (1 dash) , glissade (courir puis accroupir) , flashstep (limité à 3 step)
 
 Paramètres :
 - Déplacement par défaut du personnage : Courir/Marche
