@@ -1,4 +1,4 @@
-FLASH1
+FLASH prmeiere semaine du trophee nsi
 
 Introduction :
 La premiere semaine on cree le code de base du jeu, pour pouvoir tout crée par la suite, ensuite on commencer a presenter le github comme il doit etre rendu a la fin (creation de dossier...), c'est pas encore fini. Et on a travailler sur le lore et les idees du jeu. 
@@ -13,7 +13,7 @@ Joe :
 - Setup du github, installation de git, faire que le github soit presentable et dans les normes pour le rendu a la fin du concours. J'ai aussi aider mes camarades pour leur installer git sur le pc et pouvoir transmettre le code de vscode a github instatenement.
 
 Ivana :
--Creation du lore, accessible dans le fichier lore du jeu sur le github
+- Creation du lore, accessible dans le fichier lore du jeu sur le github
 
 Aleksy :
 - Codage, et il a surtout travailler sur les idees ( idees accessibles dans le fichier idees)
