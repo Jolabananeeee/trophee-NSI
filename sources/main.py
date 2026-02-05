@@ -1,26 +1,29 @@
 import pygame
 import sys
+from menu import afficher_menu, gerer_menu
+
 
 pygame.init()
 
 # Constantes
-
-
-LARGEUR = 800
-HAUTEUR = 600
+LARGEUR, HAUTEUR = 800, 600
 FPS = 60
 
 NOIR = (0, 0, 0)
+BLANC = (255, 255, 255)
 VERT = (0, 200, 0)
 ROUGE = (200, 0, 0)
-BLANC = (255, 255, 255)
+GRIS = (180, 180, 180)
 
 ecran = pygame.display.set_mode((LARGEUR, HAUTEUR))
 pygame.display.set_caption("Link.exe")
 clock = pygame.time.Clock()
 
-# État du jeu
-ETAT_JEU = "jeu"  # "jeu" ou "inventaire"
+ETAT_JEU = "menu"
+selection_menu = 0
+
+fade_alpha = 255
+fade_actif = True
 
 
 class Joueur:
@@ -32,7 +35,6 @@ class Joueur:
 
     def deplacer(self):
         touches = pygame.key.get_pressed()
-
         if touches[pygame.K_LEFT] or touches[pygame.K_q]:
             self.rect.x -= self.vitesse
         if touches[pygame.K_RIGHT] or touches[pygame.K_d]:
@@ -41,8 +43,6 @@ class Joueur:
             self.rect.y -= self.vitesse
         if touches[pygame.K_DOWN] or touches[pygame.K_s]:
             self.rect.y += self.vitesse
-
-        # Bloquer dans l'écran
         self.rect.clamp_ip(ecran.get_rect())
 
     def dessiner(self):
@@ -58,7 +58,6 @@ class Ennemi:
     def deplacer(self):
         self.rect.x += self.vx
         self.rect.y += self.vy
-
         if self.rect.left <= 0 or self.rect.right >= LARGEUR:
             self.vx = -self.vx
         if self.rect.top <= 0 or self.rect.bottom >= HAUTEUR:
@@ -68,11 +67,51 @@ class Ennemi:
         pygame.draw.rect(ecran, ROUGE, self.rect)
 
 
-def afficher_coeurs(joueur):
-    for i in range(joueur.vies):
-        coeur = pygame.Rect(10 + i * 30, 10, 20, 20)
-        pygame.draw.rect(ecran, ROUGE, coeur)
+def afficher_menu():
+    ecran.fill((20, 20, 20))
+    font_titre = pygame.font.Font(None, 70)
+    font = pygame.font.Font(None, 40)
+    font_aide = pygame.font.Font(None, 22)
 
+    titre = font_titre.render("LINK.EXE", True, BLANC)
+    ecran.blit(titre, (LARGEUR // 2 - 140, 80))
+
+    options = ["Jouer", "Paramètres", "Crédits", "Quitter"]
+
+    for i, option in enumerate(options):
+        prefixe = "> " if i == selection_menu else "  "
+        couleur = BLANC if i == selection_menu else GRIS
+        texte = font.render(prefixe + option, True, couleur)
+        ecran.blit(texte, (LARGEUR // 2 - 120, 220 + i * 60))
+
+    aide = font_aide.render(
+        "Utilisez ↑ ↓ pour naviguer — Entrée pour sélectionner",
+        True,
+        GRIS
+    )
+    ecran.blit(aide, (LARGEUR // 2 - 190, HAUTEUR - 40))
+
+
+def afficher_parametres():
+    ecran.fill((10, 10, 30))
+    font = pygame.font.Font(None, 40)
+    ecran.blit(font.render("PARAMÈTRES", True, BLANC), (50, 50))
+    ecran.blit(font.render("- Son : ON", True, GRIS), (50, 150))
+    ecran.blit(font.render("- Graphismes : Normal", True, GRIS), (50, 200))
+    ecran.blit(font.render("ÉCHAP : retour", True, GRIS), (50, 350))
+
+
+def afficher_credits():
+    ecran.fill(NOIR)
+    font = pygame.font.Font(None, 40)
+    ecran.blit(font.render("CRÉDITS", True, BLANC), (50, 50))
+    ecran.blit(font.render("Développement :", True, GRIS), (50, 150))
+    ecran.blit(font.render("- Julien", True, GRIS), (70, 200))  
+    ecran.blit(font.render("- Joe", True, GRIS), (70, 240))
+    ecran.blit(font.render("- Ivana", True, GRIS), (70, 280))
+    ecran.blit(font.render("- Aleksy", True, GRIS), (70, 320))
+    ecran.blit(font.render("- Trophées NSI", True, GRIS), (70, 360))
+    ecran.blit(font.render("ÉCHAP : retour", True, GRIS), (50, 420))
 
 def afficher_inventaire():
     overlay = pygame.Surface((LARGEUR, HAUTEUR))
@@ -80,23 +119,29 @@ def afficher_inventaire():
     overlay.fill((30, 30, 30))
     ecran.blit(overlay, (0, 0))
 
-    font_titre = pygame.font.Font(None, 50)
-    font_txt = pygame.font.Font(None, 30)
+    font = pygame.font.Font(None, 40)
+    ecran.blit(font.render("INVENTAIRE", True, BLANC), (300, 80))
+    ecran.blit(font.render("- Épée", True, BLANC), (250, 180))
+    ecran.blit(font.render("- Clé", True, BLANC), (250, 230))
+    ecran.blit(font.render("E ou ÉCHAP : retour", True, GRIS), (220, 350))
 
-    titre = font_titre.render("INVENTAIRE", True, BLANC)
-    ecran.blit(titre, (LARGEUR // 2 - 120, 60))
 
-    ecran.blit(font_txt.render("- Sword", True, BLANC), (200, 160))
-    ecran.blit(font_txt.render("- Key", True, BLANC), (200, 210))
-    ecran.blit(font_txt.render("- Health Potion", True, BLANC), (200, 260))
+def afficher_coeurs(joueur):
+    for i in range(joueur.vies):
+        pygame.draw.rect(ecran, ROUGE, (10 + i * 30, 10, 20, 20))
 
-    ecran.blit(font_txt.render("E ou ÉCHAP pour revenir", True, BLANC), (200, 350))
+def fade_noir(alpha):
+    overlay = pygame.Surface((LARGEUR, HAUTEUR))
+    overlay.fill((0, 0, 0))
+    overlay.set_alpha(alpha)
+    ecran.blit(overlay, (0, 0))
+
+
 
 
 joueur = Joueur()
 ennemi = Ennemi()
 
-# Boucle principale
 while True:
     clock.tick(FPS)
 
@@ -106,13 +151,30 @@ while True:
             sys.exit()
 
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_e:
-                ETAT_JEU = "inventaire" if ETAT_JEU == "jeu" else "jeu"
+            if ETAT_JEU == "menu":
+                if event.key == pygame.K_UP:
+                    selection_menu = (selection_menu - 1) % 4
+                if event.key == pygame.K_DOWN:
+                    selection_menu = (selection_menu + 1) % 4
+                if event.key == pygame.K_RETURN:
+                    if selection_menu == 0:
+                        ETAT_JEU = "jeu"
+                    elif selection_menu == 1:
+                        ETAT_JEU = "parametres"
+                    elif selection_menu == 2:
+                        ETAT_JEU = "credits"
+                    elif selection_menu == 3:
+                        pygame.quit()
+                        sys.exit()
 
-            if event.key == pygame.K_ESCAPE and ETAT_JEU == "inventaire":
+            if ETAT_JEU == "jeu" and event.key == pygame.K_e:
+                ETAT_JEU = "inventaire"
+            elif ETAT_JEU == "inventaire" and event.key in (pygame.K_e, pygame.K_ESCAPE):
                 ETAT_JEU = "jeu"
 
-    # Mise à jour UNIQUEMENT si on est dans le jeu
+            if event.key == pygame.K_ESCAPE and ETAT_JEU in ("parametres", "credits"):
+                ETAT_JEU = "menu"
+
     if ETAT_JEU == "jeu":
         joueur.deplacer()
         ennemi.deplacer()
@@ -120,23 +182,36 @@ while True:
         if joueur.rect.colliderect(ennemi.rect) and joueur.invincible == 0:
             joueur.vies -= 1
             joueur.invincible = FPS
-            print("Aïe ! Vie restante :", joueur.vies)
 
         if joueur.invincible > 0:
             joueur.invincible -= 1
 
         if joueur.vies <= 0:
-            print("GAME OVER")
             pygame.quit()
             sys.exit()
 
-    # Affichage
-    ecran.fill(NOIR)
-    joueur.dessiner()
-    ennemi.dessiner()
-    afficher_coeurs(joueur)
-
-    if ETAT_JEU == "inventaire":
+    if ETAT_JEU == "menu":
+        afficher_menu()
+        if fade_actif:
+            fade_noir(fade_alpha)
+            fade_alpha -= 1.5
+            if fade_alpha <= 0:
+                fade_alpha = 0
+                fade_actif = False
+    elif ETAT_JEU == "jeu":
+        ecran.fill(NOIR)
+        joueur.dessiner()
+        ennemi.dessiner()
+        afficher_coeurs(joueur)
+    elif ETAT_JEU == "inventaire":
+        ecran.fill(NOIR)
+        joueur.dessiner()
+        ennemi.dessiner()
+        afficher_coeurs(joueur)
         afficher_inventaire()
+    elif ETAT_JEU == "parametres":
+        afficher_parametres()
+    elif ETAT_JEU == "credits":
+        afficher_credits()
 
     pygame.display.flip()
