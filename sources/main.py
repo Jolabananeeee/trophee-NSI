@@ -1,12 +1,19 @@
 import pygame
 import sys
+import os
 from menu import afficher_menu, gerer_menu
 
 
 pygame.init()
 
-coeur_img = pygame.image.load("coeur_pv.png").convert_alpha()
+BASE_DIR = os.path.dirname(__file__)
+
+coeur_img = pygame.image.load(
+    os.path.join(BASE_DIR, "../assets/coeur_pv.png")
+).convert_alpha()
+
 coeur_img = pygame.transform.scale(coeur_img, (24, 24))
+
 
 
 # Constantes
