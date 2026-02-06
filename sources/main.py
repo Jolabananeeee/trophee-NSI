@@ -5,7 +5,7 @@ from menu import afficher_menu, gerer_menu
 
 pygame.init()
 
-coeur_img = pygame.image.load("coeur.png").convert_alpha()
+coeur_img = pygame.image.load("coeur_pv.png").convert_alpha()
 coeur_img = pygame.transform.scale(coeur_img, (24, 24))
 
 
@@ -134,7 +134,7 @@ def afficher_inventaire():
 
 def afficher_coeurs(joueur):
     for i in range(joueur.vies):
-        pygame.draw.rect(ecran, ROUGE, (10 + i * 30, 10, 20, 20))
+        ecran.blit(coeur_img, (10 + i * 30, 10))
 
 def fade_noir(alpha):
     overlay = pygame.Surface((LARGEUR, HAUTEUR))
