@@ -8,6 +8,7 @@ Répartition du travail :
 
 Julien :
 -   Debut du codage, creation des mouvements du menu "pause"
+-   Interfaces
 
 Joe :
 - Setup du github, installation de git, faire que le github soit presentable et dans les normes pour le rendu a la fin du concours. J'ai aussi aider mes camarades pour leur installer git sur le pc et pouvoir transmettre le code de vscode a github instatenement.

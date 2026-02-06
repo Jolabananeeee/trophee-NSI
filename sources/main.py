@@ -5,6 +5,10 @@ from menu import afficher_menu, gerer_menu
 
 pygame.init()
 
+coeur_img = pygame.image.load("coeur.png").convert_alpha()
+coeur_img = pygame.transform.scale(coeur_img, (24, 24))
+
+
 # Constantes
 LARGEUR, HAUTEUR = 800, 600
 FPS = 60
@@ -25,12 +29,14 @@ selection_menu = 0
 fade_alpha = 255
 fade_actif = True
 
+vie_max = 5
+
 
 class Joueur:
     def __init__(self):
         self.rect = pygame.Rect(380, 280, 40, 40)
         self.vitesse = 5
-        self.vies = 3
+        self.vies = vie_max
         self.invincible = 0
 
     def deplacer(self):
