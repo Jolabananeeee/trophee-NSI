@@ -3,17 +3,11 @@ import sys
 import os
 from menu import afficher_menu, gerer_menu
 
+#Differents etats du jeu : menu, jeu, inventaire, parametres, credits, julien, aleksy, ivana, joe
 
 pygame.init()
 
 BASE_DIR = os.path.dirname(__file__)
-
-coeur_img = pygame.image.load(
-    os.path.join(BASE_DIR, "../assets/coeur_pv.png")
-).convert_alpha()
-
-coeur_img = pygame.transform.scale(coeur_img, (24, 24))
-
 
 
 # Constantes
@@ -30,8 +24,16 @@ ecran = pygame.display.set_mode((LARGEUR, HAUTEUR))
 pygame.display.set_caption("Link.exe")
 clock = pygame.time.Clock()
 
+
+coeur_img = pygame.image.load(
+    os.path.join(BASE_DIR, "../assets/coeur_pv.png")
+).convert_alpha()
+
+coeur_img = pygame.transform.scale(coeur_img, (25, 25))
+
 ETAT_JEU = "menu"
 selection_menu = 0
+selection_credits = 0
 
 fade_alpha = 255
 fade_actif = True
@@ -113,18 +115,28 @@ def afficher_parametres():
     ecran.blit(font.render("- Graphismes : Normal", True, GRIS), (50, 200))
     ecran.blit(font.render("ÉCHAP : retour", True, GRIS), (50, 350))
 
-
 def afficher_credits():
-    ecran.fill(NOIR)
+    ecran.fill((20, 20, 20))
     font = pygame.font.Font(None, 40)
-    ecran.blit(font.render("CRÉDITS", True, BLANC), (50, 50))
-    ecran.blit(font.render("Développement :", True, GRIS), (50, 150))
-    ecran.blit(font.render("- Julien", True, GRIS), (70, 200))  
-    ecran.blit(font.render("- Joe", True, GRIS), (70, 240))
-    ecran.blit(font.render("- Ivana", True, GRIS), (70, 280))
-    ecran.blit(font.render("- Aleksy", True, GRIS), (70, 320))
-    ecran.blit(font.render("- Trophées NSI", True, GRIS), (70, 360))
-    ecran.blit(font.render("ÉCHAP : retour", True, GRIS), (50, 420))
+
+    titre = font.render("Crédits", True, BLANC)
+    ecran.blit(titre, (LARGEUR // 2 - 140, 80))
+
+    options = ["Julien", "Aleksy", "Ivana", "Joe", "Quitter"]
+
+    for i, option in enumerate(options):
+        prefixe = "> " if i == selection_credits else "  "
+        couleur = BLANC if i == selection_credits else GRIS
+        texte = font.render(prefixe + option, True, couleur)
+        ecran.blit(texte, (LARGEUR // 2 - 120, 220 + i * 60))
+
+    aide = font.render(
+        "Utilisez ↑ ↓ pour naviguer — Entrée pour sélectionner",
+        True,
+        GRIS
+    )
+    ecran.blit(aide, (LARGEUR // 2 - 190, HAUTEUR - 40))
+
 
 def afficher_inventaire():
     overlay = pygame.Surface((LARGEUR, HAUTEUR))
@@ -149,7 +161,33 @@ def fade_noir(alpha):
     overlay.set_alpha(alpha)
     ecran.blit(overlay, (0, 0))
 
+def afficher_julien():
+    ecran.fill((20, 20, 20))
+    font = pygame.font.Font(None, 40)
+    ecran.blit(font.render("Julien", True, BLANC), (50, 50))
+    ecran.blit(font.render("Concepteur et développeur principal", True, GRIS), (50, 150))
+    ecran.blit(font.render("ÉCHAP : retour", True, GRIS), (50, 350))
 
+def afficher_aleksy():
+    ecran.fill((20, 20, 20))
+    font = pygame.font.Font(None, 40)
+    ecran.blit(font.render("Aleksy", True, BLANC), (50, 50))
+    ecran.blit(font.render("Graphiste et designer", True, GRIS), (50, 150))
+    ecran.blit(font.render("ÉCHAP : retour", True, GRIS), (50, 350))
+
+def afficher_ivana():
+    ecran.fill((20, 20, 20))
+    font = pygame.font.Font(None, 40)
+    ecran.blit(font.render("Ivana", True, BLANC), (50, 50))
+    ecran.blit(font.render("Testeur et analyste de gameplay", True, GRIS), (50, 150))
+    ecran.blit(font.render("ÉCHAP : retour", True, GRIS), (50, 350))
+
+def afficher_joe():
+    ecran.fill((20, 20, 20))
+    font = pygame.font.Font(None, 40)
+    ecran.blit(font.render("Joe", True, BLANC), (50, 50))
+    ecran.blit(font.render("Compositeur de la bande-son", True, GRIS), (50, 150))
+    ecran.blit(font.render("ÉCHAP : retour", True, GRIS), (50, 350))
 
 
 joueur = Joueur()
@@ -180,6 +218,24 @@ while True:
                         pygame.quit()
                         sys.exit()
 
+
+            elif ETAT_JEU == "credits":
+                if event.key == pygame.K_UP:
+                    selection_credits = (selection_credits - 1) % 5
+                if event.key == pygame.K_DOWN:
+                    selection_credits = (selection_credits + 1) % 5
+                if event.key == pygame.K_RETURN:
+                    if selection_credits == 0:
+                        ETAT_JEU = "julien"
+                    elif selection_credits == 1:
+                        ETAT_JEU = "aleksy"
+                    elif selection_credits == 2:
+                        ETAT_JEU = "ivana"
+                    elif selection_credits == 3:
+                        ETAT_JEU = "joe"
+                    elif selection_credits == 4:
+                        ETAT_JEU = "menu"
+
             if ETAT_JEU == "jeu" and event.key == pygame.K_e:
                 ETAT_JEU = "inventaire"
             elif ETAT_JEU == "inventaire" and event.key in (pygame.K_e, pygame.K_ESCAPE):
@@ -187,6 +243,8 @@ while True:
 
             if event.key == pygame.K_ESCAPE and ETAT_JEU in ("parametres", "credits"):
                 ETAT_JEU = "menu"
+            elif event.key == pygame.K_ESCAPE and ETAT_JEU in ("julien", "aleksy", "ivana", "joe"):
+                ETAT_JEU = "credits"
 
     if ETAT_JEU == "jeu":
         joueur.deplacer()
@@ -211,20 +269,37 @@ while True:
             if fade_alpha <= 0:
                 fade_alpha = 0
                 fade_actif = False
+
     elif ETAT_JEU == "jeu":
         ecran.fill(NOIR)
         joueur.dessiner()
         ennemi.dessiner()
         afficher_coeurs(joueur)
+
     elif ETAT_JEU == "inventaire":
         ecran.fill(NOIR)
         joueur.dessiner()
         ennemi.dessiner()
         afficher_coeurs(joueur)
         afficher_inventaire()
+
     elif ETAT_JEU == "parametres":
         afficher_parametres()
+
     elif ETAT_JEU == "credits":
         afficher_credits()
+
+    elif ETAT_JEU == "julien":
+        afficher_julien()
+
+    elif ETAT_JEU == "aleksy":
+        afficher_aleksy()
+
+    elif ETAT_JEU == "ivana":
+        afficher_ivana()
+
+    elif ETAT_JEU == "joe":
+        afficher_joe()
+
 
     pygame.display.flip()
