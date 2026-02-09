@@ -186,7 +186,7 @@ def afficher_joe():
     ecran.fill((20, 20, 20))
     font = pygame.font.Font(None, 40)
     ecran.blit(font.render("Joe", True, BLANC), (50, 50))
-    ecran.blit(font.render("Compositeur de la bande-son", True, GRIS), (50, 150))
+    ecran.blit(font.render("6777777777777777777777777777777777777777777777777", True, GRIS), (50, 150))
     ecran.blit(font.render("ÉCHAP : retour", True, GRIS), (50, 350))
 
 
