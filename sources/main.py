@@ -165,28 +165,28 @@ def afficher_julien():
     ecran.fill((20, 20, 20))
     font = pygame.font.Font(None, 40)
     ecran.blit(font.render("Julien", True, BLANC), (50, 50))
-    ecran.blit(font.render("Concepteur et développeur principal", True, GRIS), (50, 150))
+    ecran.blit(font.render("A définir", True, GRIS), (50, 150))
     ecran.blit(font.render("ÉCHAP : retour", True, GRIS), (50, 350))
 
 def afficher_aleksy():
     ecran.fill((20, 20, 20))
     font = pygame.font.Font(None, 40)
     ecran.blit(font.render("Aleksy", True, BLANC), (50, 50))
-    ecran.blit(font.render("Graphiste et designer", True, GRIS), (50, 150))
+    ecran.blit(font.render("A définir", True, GRIS), (50, 150))
     ecran.blit(font.render("ÉCHAP : retour", True, GRIS), (50, 350))
 
 def afficher_ivana():
     ecran.fill((20, 20, 20))
     font = pygame.font.Font(None, 40)
     ecran.blit(font.render("Ivana", True, BLANC), (50, 50))
-    ecran.blit(font.render("Testeur et analyste de gameplay", True, GRIS), (50, 150))
+    ecran.blit(font.render("A définir", True, GRIS), (50, 150))
     ecran.blit(font.render("ÉCHAP : retour", True, GRIS), (50, 350))
 
 def afficher_joe():
     ecran.fill((20, 20, 20))
     font = pygame.font.Font(None, 40)
     ecran.blit(font.render("Joe", True, BLANC), (50, 50))
-    ecran.blit(font.render("Compositeur de la bande-son", True, GRIS), (50, 150))
+    ecran.blit(font.render("A définir", True, GRIS), (50, 150))
     ecran.blit(font.render("ÉCHAP : retour", True, GRIS), (50, 350))
 
 
@@ -238,13 +238,13 @@ while True:
 
             if ETAT_JEU == "jeu" and event.key == pygame.K_e:
                 ETAT_JEU = "inventaire"
-            elif ETAT_JEU == "inventaire" and event.key in (pygame.K_e, pygame.K_ESCAPE):
-                ETAT_JEU = "jeu"
-
+            
             if event.key == pygame.K_ESCAPE and ETAT_JEU in ("parametres", "credits"):
                 ETAT_JEU = "menu"
             elif event.key == pygame.K_ESCAPE and ETAT_JEU in ("julien", "aleksy", "ivana", "joe"):
                 ETAT_JEU = "credits"
+            elif ETAT_JEU == "inventaire" and event.key in (pygame.K_e, pygame.K_ESCAPE):
+                ETAT_JEU = "jeu"
 
     if ETAT_JEU == "jeu":
         joueur.deplacer()
