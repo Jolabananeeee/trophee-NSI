@@ -495,5 +495,4 @@ while True:
     elif ETAT_JEU == "aleksy": afficher_personne("Aleksy", "Graphiste")
     elif ETAT_JEU == "ivana": afficher_personne("Ivana", "Testeur")
     elif ETAT_JEU == "joe": afficher_personne("Joe", "Support")
-
     pygame.display.flip()
