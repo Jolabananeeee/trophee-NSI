@@ -530,3 +530,4 @@ while True:
     elif ETAT_JEU == "joe": afficher_personne("Joe", "Support")
 
     pygame.display.flip()
+    
