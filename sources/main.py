@@ -1,6 +1,7 @@
 import pygame
 import sys
 import os
+import json
 
 try:
     from menu import afficher_menu, gerer_menu
@@ -9,7 +10,13 @@ except ImportError:
 
 pygame.init()
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SAVE_DIR = os.path.join(os.getenv("LOCALAPPDATA"), "Linkexe")
+
+if not os.path.exists(SAVE_DIR):
+    os.makedirs(SAVE_DIR)
+                    
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 LARGEUR, HAUTEUR = 800, 600
 FPS = 60
 
@@ -19,13 +26,13 @@ VERT = (0, 200, 0)
 ROUGE = (200, 0, 0)
 GRIS = (180, 180, 180)
 BLEU_NUIT = (10, 10, 30)
-JAUNE = (1, 54, 78)
 
 ecran = pygame.display.set_mode((LARGEUR, HAUTEUR))
 pygame.display.set_caption("Link.exe")
 clock = pygame.time.Clock()
 
-# --- CONFIGURATION ---
+# --- CONFIGURATION GLOBALE (Sauvegarde des paramètres) ---
+# Dictionnaire des touches modifiables
 CONFIG_TOUCHES = {
     "HAUT": pygame.K_UP,
     "BAS": pygame.K_DOWN,
@@ -37,12 +44,13 @@ CONFIG_TOUCHES = {
     "TOUCHER": pygame.K_a
 }
 
+# Autres paramètres
 CONFIG_JEU = {
     "SON": True,
-    "GRAPHISMES": "NORMAL"
+    "GRAPHISMES": "NORMAL" # NORMAL, HAUT, BAS
 }
 
-# --- CHARGEMENT ---
+# --- FONCTIONS DE CHARGEMENT ---
 def charger_image(chemin, taille=None, transparence=True):
     full_path = os.path.join(BASE_DIR, chemin)
     try:
@@ -65,7 +73,7 @@ def charger_police(taille):
     except FileNotFoundError:
         return pygame.font.Font(None, taille)
 
-# --- ASSETS ---
+# --- CHARGEMENT ASSETS ---
 coeur_img = charger_image("assets/coeur_pv.png", (25, 25), transparence=True)
 titre_img = charger_image("assets/titre.png", taille=(300, 100), transparence=True) 
 bg1 = charger_image("assets/bg1.png", (LARGEUR, HAUTEUR), transparence=False)
@@ -82,74 +90,65 @@ police_bouton = charger_police(32)
 police_texte = charger_police(24)
 police_aide = charger_police(20)
 
-# --- ETATS ---
+# --- ETATS DU JEU ---
 ETAT_JEU = "menu"
 selection_menu = 0
 selection_credits = 0
 selection_fichier = 0 
-selection_game_over = 0 # Pour le menu de mort
 fade_alpha = 255
 fade_actif = True
 vie_max = 5
 
-# --- PARAMETRES ---
-onglet_actif = 0
-selection_parametre = 0
-en_attente_touche = False
-cle_a_modifier = None
+# --- VARIABLES POUR LE MENU PARAMETRES ---
+onglet_actif = 0 # 0: Général, 1: Audio, 2: Contrôles, 3: Système
+selection_parametre = 0 # Quelle ligne est sélectionnée dans l'onglet
+en_attente_touche = False # Est-ce qu'on attend que l'utilisateur appuie sur une touche ?
+cle_a_modifier = None # Quelle action on modifie (ex: "HAUT")
 
-# --- CREATION OBJETS (DICTIONNAIRES) ---
+class Joueur:
+    def __init__(self):
+        self.rect = pygame.Rect(380, 280, 40, 40)
+        self.vitesse = 5
+        self.vies = vie_max
+        self.invincible = 0
 
-def creer_joueur():
-    return {
-        "rect": pygame.Rect(380, 280, 40, 40),
-        "vitesse": 5,
-        "vies": vie_max,
-        "invincible": 0
-    }
-
-def deplacer_joueur(joueur):
-    touches = pygame.key.get_pressed()
-    dx, dy = 0, 0
-    
-    if touches[CONFIG_TOUCHES["GAUCHE"]]: dx = -joueur["vitesse"]
-    if touches[CONFIG_TOUCHES["DROITE"]]: dx = joueur["vitesse"]
-    if touches[CONFIG_TOUCHES["HAUT"]]: dy = -joueur["vitesse"]
-    if touches[CONFIG_TOUCHES["BAS"]]: dy = joueur["vitesse"]
-    
-    if touches[CONFIG_TOUCHES["COURIR"]]:
-        joueur["rect"].x += dx * 2
-        joueur["rect"].y += dy * 2
-    else:
-        joueur["rect"].x += dx
-        joueur["rect"].y += dy
+    def deplacer(self):
+        touches = pygame.key.get_pressed()
+        dx, dy = 0, 0
         
-    joueur["rect"].clamp_ip(ecran.get_rect())
+        # UTILISATION DES TOUCHES CONFIGURÉES
+        if touches[CONFIG_TOUCHES["GAUCHE"]]: dx = -self.vitesse
+        if touches[CONFIG_TOUCHES["DROITE"]]: dx = self.vitesse
+        if touches[CONFIG_TOUCHES["HAUT"]]: dy = -self.vitesse
+        if touches[CONFIG_TOUCHES["BAS"]]: dy = self.vitesse
+        
+        # Touche courir
+        if touches[CONFIG_TOUCHES["COURIR"]]:
+            self.rect.x += dx * 2
+            self.rect.y += dy * 2
+        else:
+            self.rect.x += dx
+            self.rect.y += dy
+            
+        self.rect.clamp_ip(ecran.get_rect())
 
-def dessiner_joueur(joueur):
-    pygame.draw.rect(ecran, VERT, joueur["rect"])
+    def dessiner(self):
+        pygame.draw.rect(ecran, VERT, self.rect)
 
+class Ennemi:
+    def __init__(self):
+        self.rect = pygame.Rect(200, 150, 40, 40)
+        self.vx = 3
+        self.vy = 3
+    def deplacer(self):
+        self.rect.x += self.vx
+        self.rect.y += self.vy
+        if self.rect.left <= 0 or self.rect.right >= LARGEUR: self.vx = -self.vx
+        if self.rect.top <= 0 or self.rect.bottom >= HAUTEUR: self.vy = -self.vy
+    def dessiner(self):
+        pygame.draw.rect(ecran, ROUGE, self.rect)
 
-def creer_ennemi():
-    return {
-        "rect": pygame.Rect(200, 150, 40, 40),
-        "vx": 3,
-        "vy": 3
-    }
-
-def deplacer_ennemi(ennemi):
-    ennemi["rect"].x += ennemi["vx"]
-    ennemi["rect"].y += ennemi["vy"]
-    
-    if ennemi["rect"].left <= 0 or ennemi["rect"].right >= LARGEUR:
-        ennemi["vx"] = -ennemi["vx"]
-    if ennemi["rect"].top <= 0 or ennemi["rect"].bottom >= HAUTEUR:
-        ennemi["vy"] = -ennemi["vy"]
-
-def dessiner_ennemi(ennemi):
-    pygame.draw.rect(ecran, ROUGE, ennemi["rect"])
-
-# --- AFFICHAGE ---
+# --- FONCTIONS D'AFFICHAGE ---
 
 def afficher_menu_local():
     global index_bg_actuel, dernier_changement_bg
@@ -180,26 +179,33 @@ def afficher_menu_local():
         texte_surface = police_bouton.render(option, True, BLANC)
         ecran.blit(texte_surface, texte_surface.get_rect(center=bouton_rect.center))
     
+    # Affichage dynamique de la touche configurée pour sélectionner
     nom_touche = pygame.key.name(CONFIG_TOUCHES['CONFIRMER']).upper()
     aide_surface = police_aide.render(f"FLÈCHES : naviguer — {nom_touche} : sélectionner", True, GRIS)
     ecran.blit(aide_surface, aide_surface.get_rect(center=(LARGEUR // 2, HAUTEUR - 30)))
 
 def afficher_selection_fichier():
     ecran.fill(NOIR)
+    
     slot_largeur, slot_hauteur = 600, 140
     start_x = (LARGEUR - slot_largeur) // 2
     start_y, espacement = 50, 20
 
+    # On parcourt les 3 slots
     for i in range(3):
         y_pos = start_y + i * (slot_hauteur + espacement)
         rect_slot = pygame.Rect(start_x, y_pos, slot_largeur, slot_hauteur)
         epaisseur = 4 if i == selection_fichier else 2
         couleur_bord = BLANC if i == selection_fichier else GRIS
-        
+
+        # Dessin du rectangle du slot
         pygame.draw.rect(ecran, NOIR, rect_slot)
         pygame.draw.rect(ecran, couleur_bord, rect_slot, epaisseur)
+
+        # Nom du slot
         ecran.blit(police_bouton.render(f"FICHIER {i + 1}", True, BLANC), (rect_slot.x + 15, rect_slot.y + 10))
-        
+
+        # Lignes de séparation à l'intérieur du slot
         ligne_y = rect_slot.y + 45
         pygame.draw.line(ecran, couleur_bord, (rect_slot.x, ligne_y), (rect_slot.right, ligne_y), 2)
         ligne_x = rect_slot.x + 130
@@ -210,6 +216,21 @@ def afficher_selection_fichier():
         y_ligne2 = y_ligne1 + 32
         pygame.draw.line(ecran, couleur_bord, (ligne_x, y_ligne2), (rect_slot.right, y_ligne2), 1)
 
+        # --- AFFICHAGE DES INFOS DU SLOT ---
+        slot_num = i + 1
+        path = chemin_slot(slot_num)
+        
+        if os.path.exists(path):
+            with open(path, "r") as f:
+                data = json.load(f)
+                texte_info = f"Vies : {data['vies']}  |  Position : ({data['x']}, {data['y']})"
+        else:
+            texte_info = "VIDE"
+
+        info_surface = police_texte.render(texte_info, True, GRIS)
+        ecran.blit(info_surface, (rect_slot.x + 150, rect_slot.y + 60))
+
+    # Affichage de l'aide en bas
     nom_touche = pygame.key.name(CONFIG_TOUCHES['CONFIRMER']).upper()
     nom_retour = pygame.key.name(CONFIG_TOUCHES['ANNULER']).upper()
     txt_aide = police_aide.render(f"{nom_touche} : CHARGER — {nom_retour} : RETOUR", True, GRIS)
@@ -223,6 +244,7 @@ def dessiner_touche(x, y, texte, couleur=BLANC, est_selectionne=False):
     box_rect = pygame.Rect(0, 0, largeur_box, taille_min)
     box_rect.center = (x, y)
     
+    # Si on est en train d'attendre une touche (clignotement ou rouge)
     if est_selectionne and en_attente_touche:
         pygame.draw.rect(ecran, ROUGE, box_rect)
         pygame.draw.rect(ecran, BLANC, box_rect, 2)
@@ -242,32 +264,40 @@ def afficher_parametres():
     x_start = (LARGEUR - largeur_onglets) // 2 + 50
     x_step = 160 
     
+    # 1. Dessin des onglets
     for i, onglet in enumerate(onglets):
+        # L'onglet est rouge si c'est celui actif
         couleur = ROUGE if i == onglet_actif else BLANC
         txt = police_bouton.render(onglet, True, couleur)
         rect = txt.get_rect(center=(x_start + i * x_step, y_header))
         ecran.blit(txt, rect)
         
+        # Petit curseur main
         if i == onglet_actif:
              main_rect = img_main.get_rect(midright=(rect.left - 10, rect.centery))
              ecran.blit(img_main, main_rect)
 
     pygame.draw.line(ecran, BLANC, (50, y_header + 25), (LARGEUR - 50, y_header + 25), 3)
 
+    # 2. Contenu en fonction de l'onglet
     start_y = 160
     line_height = 45
 
-    if onglet_actif == 2: # CONTRÔLES
+    if onglet_actif == 2: # --- CONTRÔLES ---
         ecran.blit(police_bouton.render("CLAVIER", True, BLANC), (380, 130))
         ecran.blit(police_bouton.render("MANETTE", True, BLANC), (600, 130))
         
+        # Liste des clés du dictionnaire pour l'ordre
         ordre_affichage = ["HAUT", "BAS", "GAUCHE", "DROITE", "CONFIRMER", "ANNULER", "COURIR", "TOUCHER"]
         
         for i, action in enumerate(ordre_affichage):
             y = 190 + i * line_height
+            
+            # Si c'est la ligne sélectionnée
             est_selectionne = (i == selection_parametre)
             couleur_texte = ROUGE if est_selectionne else BLANC
             
+            # Nom Action
             txt_action = police_texte.render(action, True, couleur_texte)
             ecran.blit(txt_action, (80, y - 12))
             
@@ -275,18 +305,21 @@ def afficher_parametres():
                 main_rect = img_main.get_rect(midright=(70, y - 12 + 10))
                 ecran.blit(img_main, main_rect)
 
+            # Touche Actuelle
             code_touche = CONFIG_TOUCHES[action]
             nom_touche = pygame.key.name(code_touche).upper()
             
+            # Si on attend une touche, on affiche "..." ou "?", sinon le nom de la touche
             if est_selectionne and en_attente_touche:
                 texte_touche = "..." 
             else:
                 texte_touche = nom_touche
 
             dessiner_touche(430, y, texte_touche, couleur_texte, est_selectionne)
-            dessiner_touche(660, y, "-", GRIS)
+            dessiner_touche(660, y, "-", GRIS) # Manette (décoratif)
 
-    elif onglet_actif == 0: # GÉNÉRAL
+    elif onglet_actif == 0: # --- GÉNÉRAL ---
+        # Exemple simple
         options = ["GRAPHISMES"]
         for i, opt in enumerate(options):
             y = start_y + i * line_height
@@ -295,7 +328,7 @@ def afficher_parametres():
             if i == selection_parametre:
                 ecran.blit(img_main, (70, y))
 
-    elif onglet_actif == 1: # AUDIO
+    elif onglet_actif == 1: # --- AUDIO ---
         options = ["SON"]
         for i, opt in enumerate(options):
             y = start_y + i * line_height
@@ -305,9 +338,10 @@ def afficher_parametres():
             if i == selection_parametre:
                 ecran.blit(img_main, (70, y))
                 
-    elif onglet_actif == 3: # SYSTÈME
+    elif onglet_actif == 3: # --- SYSTÈME ---
         ecran.blit(police_texte.render("Version 1.0.8", True, GRIS), (100, start_y))
 
+    # Pied de page
     pygame.draw.line(ecran, BLANC, (50, HAUTEUR - 60), (LARGEUR - 50, HAUTEUR - 60), 3)
     nom_retour = pygame.key.name(CONFIG_TOUCHES['ANNULER']).upper()
     aide = police_aide.render(f"{nom_retour} : RETOUR", True, GRIS)
@@ -337,31 +371,8 @@ def afficher_inventaire():
     nom_retour = pygame.key.name(CONFIG_TOUCHES['ANNULER']).upper()
     ecran.blit(police_aide.render(f"{nom_retour} : retour", True, GRIS), (220, 350))
 
-# --- NOUVEAU : MENU DE MORT ---
-def afficher_game_over():
-    ecran.fill(NOIR)
-    
-    txt_mort = police_titre_texte.render("VOUS AVEZ SUCCOMBÉ...", True, ROUGE)
-    ecran.blit(txt_mort, txt_mort.get_rect(center=(LARGEUR // 2, HAUTEUR // 3)))
-    
-    options = ["RÉAPPARAÎTRE", "REVENIR AU MENU"]
-    
-    for i, option in enumerate(options):
-        couleur = BLANC if i == selection_game_over else GRIS
-        txt = police_bouton.render(option, True, couleur)
-        rect = txt.get_rect(center=(LARGEUR // 2, HAUTEUR // 2 + 50 + i * 60))
-        
-        if i == selection_game_over:
-            # Cadre + main
-            border_rect = rect.inflate(20, 10)
-            pygame.draw.rect(ecran, NOIR, border_rect)
-            pygame.draw.rect(ecran, BLANC, border_rect, 2)
-            ecran.blit(img_main, img_main.get_rect(midright=(border_rect.left - 10, border_rect.centery)))
-            
-        ecran.blit(txt, rect)
-
-def afficher_coeurs(joueur_data):
-    for i in range(joueur_data["vies"]):
+def afficher_coeurs(joueur):
+    for i in range(joueur.vies):
         ecran.blit(coeur_img, (10 + i * 30, 10))
 
 def fade_noir(alpha):
@@ -376,9 +387,40 @@ def afficher_personne(nom, role):
     nom_retour = pygame.key.name(CONFIG_TOUCHES['ANNULER']).upper()
     ecran.blit(police_aide.render(f"{nom_retour} : retour", True, GRIS), (50, 350))
 
-# --- INITIALISATION OBJETS ---
-joueur = creer_joueur()
-ennemi = creer_ennemi()
+joueur = Joueur()
+ennemi = Ennemi()
+
+
+# --- FONCTIONS DE SAUVEGARDE/CHARGEMENT ---
+
+def chemin_slot(slot):
+    return os.path.join(SAVE_DIR, f"save_slot_{slot}.json")
+
+
+def sauvegarder_slot(slot):
+    data = {
+        "x": joueur.rect.x,
+        "y": joueur.rect.y,
+        "vies": joueur.vies
+    }
+    with open(chemin_slot(slot), "w") as f:
+        json.dump(data, f, indent=4)
+
+
+def charger_slot(slot):
+    try:
+        with open(chemin_slot(slot), "r") as f:
+            data = json.load(f)
+            joueur.rect.x = data["x"]
+            joueur.rect.y = data["y"]
+            joueur.vies = data["vies"]
+    except FileNotFoundError:
+        # Nouvelle partie
+        joueur.rect.x = 380
+        joueur.rect.y = 280
+        joueur.vies = vie_max
+
+
 
 # --- BOUCLE PRINCIPALE ---
 while True:
@@ -390,16 +432,19 @@ while True:
             pygame.quit()
             sys.exit()
 
-        # REBINDING
+        # --- GESTION DU REBINDING DE TOUCHE (PARAMETRES) ---
         if ETAT_JEU == "parametres" and en_attente_touche:
             if event.type == pygame.KEYDOWN:
+                # On assigne la nouvelle touche
                 CONFIG_TOUCHES[cle_a_modifier] = event.key
                 en_attente_touche = False
                 cle_a_modifier = None
-            continue
+            continue # On ignore les autres inputs tant qu'on rebind
 
-        # NAVIGATION
+        # --- NAVIGATION CLASSIQUE ---
         if event.type == pygame.KEYDOWN:
+            
+            # MENU PRINCIPAL
             if ETAT_JEU == "menu":
                 if event.key == pygame.K_LEFT: selection_menu = (selection_menu - 1) % 4
                 if event.key == pygame.K_RIGHT: selection_menu = (selection_menu + 1) % 4
@@ -412,30 +457,37 @@ while True:
                     elif selection_menu == 2: ETAT_JEU = "credits"
                     elif selection_menu == 3: pygame.quit(); sys.exit()
 
+            # PARAMETRES (LOGIQUE COMPLEXE)
             elif ETAT_JEU == "parametres":
+                # Changement d'onglet (Gauche/Droite)
                 if event.key == pygame.K_LEFT: 
                     onglet_actif = (onglet_actif - 1) % 4
-                    selection_parametre = 0
+                    selection_parametre = 0 # Reset selection
                 if event.key == pygame.K_RIGHT: 
                     onglet_actif = (onglet_actif + 1) % 4
                     selection_parametre = 0
 
+                # Navigation verticale dans l'onglet
                 nb_items = 0
-                if onglet_actif == 2: nb_items = 8
-                elif onglet_actif == 0: nb_items = 1
-                elif onglet_actif == 1: nb_items = 1
+                if onglet_actif == 2: nb_items = 8 # Contrôles
+                elif onglet_actif == 0: nb_items = 1 # Général
+                elif onglet_actif == 1: nb_items = 1 # Audio
                 
                 if nb_items > 0:
                     if event.key == pygame.K_UP: selection_parametre = (selection_parametre - 1) % nb_items
                     if event.key == pygame.K_DOWN: selection_parametre = (selection_parametre + 1) % nb_items
 
+                # Action sur un paramètre
                 if event.key == CONFIG_TOUCHES["CONFIRMER"]:
-                    if onglet_actif == 2:
+                    if onglet_actif == 2: # CONTRÔLES
                         ordre = ["HAUT", "BAS", "GAUCHE", "DROITE", "CONFIRMER", "ANNULER", "COURIR", "TOUCHER"]
                         cle_a_modifier = ordre[selection_parametre]
                         en_attente_touche = True
-                    elif onglet_actif == 1: CONFIG_JEU["SON"] = not CONFIG_JEU["SON"]
-                    elif onglet_actif == 0:
+                    
+                    elif onglet_actif == 1: # AUDIO
+                        CONFIG_JEU["SON"] = not CONFIG_JEU["SON"]
+
+                    elif onglet_actif == 0: # GENERAL
                         modes = ["BAS", "NORMAL", "HAUT"]
                         curr = modes.index(CONFIG_JEU["GRAPHISMES"])
                         CONFIG_JEU["GRAPHISMES"] = modes[(curr + 1) % 3]
@@ -443,19 +495,27 @@ while True:
                 if event.key == CONFIG_TOUCHES["ANNULER"] or event.key == pygame.K_ESCAPE:
                     ETAT_JEU = "menu"
 
+            # SELECTION FICHIER
             elif ETAT_JEU == "selection_fichier":
                 if event.key == pygame.K_UP: selection_fichier = (selection_fichier - 1) % 3
                 if event.key == pygame.K_DOWN: selection_fichier = (selection_fichier + 1) % 3
-                if event.key == CONFIG_TOUCHES["CONFIRMER"]: ETAT_JEU = "jeu"
+                if event.key == CONFIG_TOUCHES["CONFIRMER"]:
+                    charger_slot(selection_fichier + 1)
+                    ETAT_JEU = "jeu"
                 if event.key == CONFIG_TOUCHES["ANNULER"] or event.key == pygame.K_ESCAPE: ETAT_JEU = "menu"
 
+            # JEU
             elif ETAT_JEU == "jeu":
                 if event.key == pygame.K_e: ETAT_JEU = "inventaire"
-                elif event.key == CONFIG_TOUCHES["ANNULER"] or event.key == pygame.K_ESCAPE: ETAT_JEU = "menu"
+                elif event.key == CONFIG_TOUCHES["ANNULER"] or event.key == pygame.K_ESCAPE:
+                    sauvegarder_slot(selection_fichier + 1)
+                    ETAT_JEU = "menu"
 
+            # INVENTAIRE
             elif ETAT_JEU == "inventaire":
                 if event.key in (pygame.K_e, CONFIG_TOUCHES["ANNULER"], pygame.K_ESCAPE): ETAT_JEU = "jeu"
 
+            # CREDITS
             elif ETAT_JEU == "credits":
                 if event.key == pygame.K_UP: selection_credits = (selection_credits - 1) % 5
                 if event.key == pygame.K_DOWN: selection_credits = (selection_credits + 1) % 5
@@ -464,39 +524,21 @@ while True:
                     ETAT_JEU = etats[selection_credits]
                 if event.key == CONFIG_TOUCHES["ANNULER"] or event.key == pygame.K_ESCAPE: ETAT_JEU = "menu"
 
+            # PAGES INDIVIDUELLES
             elif ETAT_JEU in ("julien", "aleksy", "ivana", "joe"):
                 if event.key == CONFIG_TOUCHES["ANNULER"] or event.key == pygame.K_ESCAPE: ETAT_JEU = "credits"
 
-            # --- GESTION INPUT GAME OVER ---
-            elif ETAT_JEU == "game_over":
-                if event.key == pygame.K_UP:
-                    selection_game_over = (selection_game_over - 1) % 2
-                if event.key == pygame.K_DOWN:
-                    selection_game_over = (selection_game_over + 1) % 2
-                
-                if event.key == CONFIG_TOUCHES["CONFIRMER"]:
-                    if selection_game_over == 0: # RÉAPPARAÎTRE
-                        joueur["vies"] = vie_max
-                        joueur["rect"].topleft = (380, 280)
-                        joueur["invincible"] = FPS * 2
-                        ETAT_JEU = "jeu"
-                    elif selection_game_over == 1: # REVENIR AU MENU
-                        joueur["vies"] = vie_max
-                        joueur["rect"].topleft = (380, 280)
-                        ETAT_JEU = "menu"
-
     # --- LOGIQUE ---
     if ETAT_JEU == "jeu":
-        deplacer_joueur(joueur)
-        deplacer_ennemi(ennemi)
-        if joueur["rect"].colliderect(ennemi["rect"]) and joueur["invincible"] == 0:
-            joueur["vies"] -= 1
-            joueur["invincible"] = FPS
-        if joueur["invincible"] > 0: joueur["invincible"] -= 1
-        
-        # MORT : Passage à l'état game_over
-        if joueur["vies"] <= 0:
-            ETAT_JEU = "game_over"
+        joueur.deplacer()
+        ennemi.deplacer()
+        if joueur.rect.colliderect(ennemi.rect) and joueur.invincible == 0:
+            joueur.vies -= 1
+            joueur.invincible = FPS
+        if joueur.invincible > 0: joueur.invincible -= 1
+        if joueur.vies <= 0:
+            joueur.vies = vie_max
+            ETAT_JEU = "menu"
 
     # --- AFFICHAGE ---
     if ETAT_JEU == "menu":
@@ -507,27 +549,15 @@ while True:
             if fade_alpha <= 0: fade_actif = False
 
     elif ETAT_JEU == "selection_fichier": afficher_selection_fichier()
-    
     elif ETAT_JEU == "jeu":
-        ecran.fill(NOIR)
-        dessiner_joueur(joueur)
-        dessiner_ennemi(ennemi)
-        afficher_coeurs(joueur)
-        
+        ecran.fill(NOIR); joueur.dessiner(); ennemi.dessiner(); afficher_coeurs(joueur)
     elif ETAT_JEU == "inventaire":
-        ecran.fill(NOIR)
-        dessiner_joueur(joueur)
-        dessiner_ennemi(ennemi)
-        afficher_coeurs(joueur)
-        afficher_inventaire()
-        
+        ecran.fill(NOIR); joueur.dessiner(); ennemi.dessiner(); afficher_coeurs(joueur); afficher_inventaire()
     elif ETAT_JEU == "parametres": afficher_parametres()
     elif ETAT_JEU == "credits": afficher_credits()
-    elif ETAT_JEU == "game_over": afficher_game_over() # Appel de la fonction
     elif ETAT_JEU == "julien": afficher_personne("Julien", "Développeur")
     elif ETAT_JEU == "aleksy": afficher_personne("Aleksy", "Graphiste")
     elif ETAT_JEU == "ivana": afficher_personne("Ivana", "Testeur")
     elif ETAT_JEU == "joe": afficher_personne("Joe", "Support")
 
     pygame.display.flip()
-    
