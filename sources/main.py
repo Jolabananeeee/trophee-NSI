@@ -105,18 +105,28 @@ def creer_joueur():
         "rect": pygame.Rect(380, 280, 40, 40),
         "vitesse": 5,
         "vies": vie_max,
-        "invincible": 0
+        "invincible": 0,
+        "direction": "BAS",
+        "timer_attaque": 0
     }
 
 def deplacer_joueur(joueur):
+    if joueur["timer_attaque"] > 0:
+        joueur["timer_attaque"] -= 1
+        return
+    
     touches = pygame.key.get_pressed()
     dx, dy = 0, 0
     
-    if touches[CONFIG_TOUCHES["GAUCHE"]]: dx = -joueur["vitesse"]
-    if touches[CONFIG_TOUCHES["DROITE"]]: dx = joueur["vitesse"]
-    if touches[CONFIG_TOUCHES["HAUT"]]: dy = -joueur["vitesse"]
-    if touches[CONFIG_TOUCHES["BAS"]]: dy = joueur["vitesse"]
+   
+    if touches[CONFIG_TOUCHES["GAUCHE"]]: dx = -joueur["vitesse"]; joueur["direction"] = "GAUCHE"
+    if touches[CONFIG_TOUCHES["DROITE"]]: dx = joueur["vitesse"]; joueur["direction"] = "DROITE"
+    if touches[CONFIG_TOUCHES["HAUT"]]: dy = -joueur["vitesse"]; joueur["direction"] = "HAUT"
+    if touches[CONFIG_TOUCHES["BAS"]]: dy = joueur["vitesse"]; joueur["direction"] = "BAS"
     
+    if touches[CONFIG_TOUCHES["TOUCHER"]]:
+        joueur["timer_attaque"] = FPS // 4
+
     if touches[CONFIG_TOUCHES["COURIR"]]:
         joueur["rect"].x += dx * 2
         joueur["rect"].y += dy * 2
@@ -215,6 +225,28 @@ def afficher_selection_fichier():
     txt_aide = police_aide.render(f"{nom_touche} : CHARGER — {nom_retour} : RETOUR", True, GRIS)
     ecran.blit(txt_aide, txt_aide.get_rect(center=(LARGEUR // 2, HAUTEUR - 30)))
 
+def afficher_et_gerer_attaque(joueur, ennemi):
+    if joueur["timer_attaque"] > 0:
+        rect_epee = pygame.Rect(0, 0, 0, 0)
+        taille_lame = 30
+        
+        if joueur["direction"] == "HAUT":
+            rect_epee = pygame.Rect(joueur["rect"].centerx - 5, joueur["rect"].top - taille_lame, 10, taille_lame)
+        elif joueur["direction"] == "BAS":
+            rect_epee = pygame.Rect(joueur["rect"].centerx - 5, joueur["rect"].bottom, 10, taille_lame)
+        elif joueur["direction"] == "GAUCHE":
+            rect_epee = pygame.Rect(joueur["rect"].left - taille_lame, joueur["rect"].centery - 5, taille_lame, 10)
+        elif joueur["direction"] == "DROITE":
+            rect_epee = pygame.Rect(joueur["rect"].right, joueur["rect"].centery - 5, taille_lame, 10)
+            
+        pygame.draw.rect(ecran, JAUNE, rect_epee)
+        
+        if rect_epee.colliderect(ennemi["rect"]):
+            import random
+            ennemi["rect"].x = random.randint(0, LARGEUR - 40)
+            ennemi["rect"].y = random.randint(0, HAUTEUR - 40)
+           
+
 def dessiner_touche(x, y, texte, couleur=BLANC, est_selectionne=False):
     surf = police_texte.render(texte, True, couleur)
     rect = surf.get_rect(center=(x, y))
@@ -231,6 +263,8 @@ def dessiner_touche(x, y, texte, couleur=BLANC, est_selectionne=False):
         pygame.draw.rect(ecran, couleur, box_rect, 2)
         
     ecran.blit(surf, rect)
+
+
 
 def afficher_parametres():
     ecran.fill(NOIR)
@@ -337,7 +371,6 @@ def afficher_inventaire():
     nom_retour = pygame.key.name(CONFIG_TOUCHES['ANNULER']).upper()
     ecran.blit(police_aide.render(f"{nom_retour} : retour", True, GRIS), (220, 350))
 
-# --- NOUVEAU : MENU DE MORT ---
 def afficher_game_over():
     ecran.fill(NOIR)
     
@@ -376,11 +409,9 @@ def afficher_personne(nom, role):
     nom_retour = pygame.key.name(CONFIG_TOUCHES['ANNULER']).upper()
     ecran.blit(police_aide.render(f"{nom_retour} : retour", True, GRIS), (50, 350))
 
-# --- INITIALISATION OBJETS ---
 joueur = creer_joueur()
 ennemi = creer_ennemi()
 
-# --- BOUCLE PRINCIPALE ---
 while True:
     clock.tick(FPS)
     
@@ -485,7 +516,6 @@ while True:
                         joueur["rect"].topleft = (380, 280)
                         ETAT_JEU = "menu"
 
-    # --- LOGIQUE ---
     if ETAT_JEU == "jeu":
         deplacer_joueur(joueur)
         deplacer_ennemi(ennemi)
@@ -494,11 +524,9 @@ while True:
             joueur["invincible"] = FPS
         if joueur["invincible"] > 0: joueur["invincible"] -= 1
         
-        # MORT : Passage à l'état game_over
         if joueur["vies"] <= 0:
             ETAT_JEU = "game_over"
 
-    # --- AFFICHAGE ---
     if ETAT_JEU == "menu":
         afficher_menu_local()
         if fade_actif:
@@ -511,6 +539,7 @@ while True:
     elif ETAT_JEU == "jeu":
         ecran.fill(NOIR)
         dessiner_joueur(joueur)
+        afficher_et_gerer_attaque(joueur, ennemi)
         dessiner_ennemi(ennemi)
         afficher_coeurs(joueur)
         
