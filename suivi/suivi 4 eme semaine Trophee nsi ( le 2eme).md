@@ -5,10 +5,10 @@ Echoes of the Shattered Worlds est un zelda like, il s'inspire des premiers zeld
 est de vaincre un demon nommé Vharok
 
 👥 L'Équipe
-Lautier Joe (@Jolabananeeee): Dev: Direction artitique, codeur du gameplay, sound design
-Aleksy andriavano (@aswxl) dev. : Responsable :  Texturing , effets graphiques, sound design
-Julien fourreau (@Neilujien6) dev. : Responsable : Direction artistique texturing
-Ivana Duchemin  dev.  Responsable :  Texturing
+Lautier Joe (@Jolabananeeee): Dev: Direction artitique, codeur du gameplay, sound design:
+Aleksy andriavano (@aswxl) dev. : Responsable :  Texturing , effets graphiques, sound design:
+Julien fourreau (@Neilujien6) dev. : Responsable : Direction artistique texturing:
+Ivana Duchemin  dev.  Responsable :  Texturing:
 
 🛠️ Aspects Techniques (Spécificités NSI)
 Cette section est cruciale pour le jury. Expliquez comment vous avez utilisé le programme de NSI :
@@ -36,7 +36,7 @@ Ivana: debut de la creation des personnages
 📸 Captures d'écran
 >
 Ajoutez ici une ou deux images de votre projet en action.
-![Aperçu du projet](lien_vers_image.png)
+![Aperçu du projet]
 
 📜 Licence
 Le code du projet est placé sous licence libre GPL v3+ et le texte sous licence Creative Commons CC By-Sa.
