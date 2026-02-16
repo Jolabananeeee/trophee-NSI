@@ -1,6 +1,19 @@
 import pygame
 import sys
 import os
+import json
+from datetime import datetime
+
+
+# --- DOSSIER DE SAUVEGARDE LOCAL ---
+SAVE_DIR = os.path.join(os.getenv("LOCALAPPDATA") or os.path.expanduser("~"), "LinkExe")
+
+if not os.path.exists(SAVE_DIR):
+    os.makedirs(SAVE_DIR)
+
+def chemin_slot(slot):
+    return os.path.join(SAVE_DIR, f"save_slot_{slot}.json")
+
 
 try:
     from menu import afficher_menu, gerer_menu
@@ -220,6 +233,33 @@ def afficher_selection_fichier():
         y_ligne2 = y_ligne1 + 32
         pygame.draw.line(ecran, couleur_bord, (ligne_x, y_ligne2), (rect_slot.right, y_ligne2), 1)
 
+        slot_num = i + 1
+        path = chemin_slot(slot_num)
+
+        if os.path.exists(path):
+            try:
+                with open(path, "r") as f:
+                    data = json.load(f)
+
+                vies = data.get("joueur", {}).get("vies", "?")
+                date = data.get("timestamp", "--/-- --:--")
+
+                texte_info = f"vies : {vies} | {date}"
+
+
+            except:
+                texte_info = "CORROMPUE"
+
+        else:
+            texte_info = "VIDE"
+
+        info_surface = police_texte.render(texte_info, True, GRIS)
+        ecran.blit(info_surface, (rect_slot.x + 200, ligne_y + 10))
+
+
+
+
+
     nom_touche = pygame.key.name(CONFIG_TOUCHES['CONFIRMER']).upper()
     nom_retour = pygame.key.name(CONFIG_TOUCHES['ANNULER']).upper()
     txt_aide = police_aide.render(f"{nom_touche} : CHARGER — {nom_retour} : RETOUR", True, GRIS)
@@ -412,6 +452,56 @@ def afficher_personne(nom, role):
 joueur = creer_joueur()
 ennemi = creer_ennemi()
 
+def sauvegarder_slot(slot):
+    data = {
+        "joueur": {
+            "x": joueur["rect"].x,
+            "y": joueur["rect"].y,
+            "vies": joueur["vies"]
+        },
+        "touches": CONFIG_TOUCHES,
+        "config_jeu": CONFIG_JEU,
+        "timestamp": datetime.now().strftime("%d/%m %H:%M")
+    }
+
+    with open(chemin_slot(slot), "w") as f:
+        json.dump(data, f, indent=4)
+
+
+
+def charger_slot(slot):
+    global CONFIG_TOUCHES, CONFIG_JEU
+
+    path = chemin_slot(slot)
+
+    # Si le fichier n'existe pas → nouvelle partie
+    if not os.path.exists(path):
+        joueur["rect"].topleft = (380, 280)
+        joueur["vies"] = vie_max
+        return
+
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+
+        # Vérification sécurité
+        if "joueur" not in data:
+            raise ValueError("Sauvegarde invalide")
+
+        joueur["rect"].x = data["joueur"]["x"]
+        joueur["rect"].y = data["joueur"]["y"]
+        joueur["vies"] = data["joueur"]["vies"]
+
+        CONFIG_TOUCHES = data.get("touches", CONFIG_TOUCHES)
+        CONFIG_JEU = data.get("config_jeu", CONFIG_JEU)
+
+    except Exception:
+        # Si la sauvegarde est corrompue
+        joueur["rect"].topleft = (380, 280)
+        joueur["vies"] = vie_max
+
+
+
 while True:
     clock.tick(FPS)
     
@@ -477,12 +567,17 @@ while True:
             elif ETAT_JEU == "selection_fichier":
                 if event.key == pygame.K_UP: selection_fichier = (selection_fichier - 1) % 3
                 if event.key == pygame.K_DOWN: selection_fichier = (selection_fichier + 1) % 3
-                if event.key == CONFIG_TOUCHES["CONFIRMER"]: ETAT_JEU = "jeu"
+                if event.key == CONFIG_TOUCHES["CONFIRMER"]:
+                    charger_slot(selection_fichier + 1)
+                    ETAT_JEU = "jeu"
                 if event.key == CONFIG_TOUCHES["ANNULER"] or event.key == pygame.K_ESCAPE: ETAT_JEU = "menu"
 
             elif ETAT_JEU == "jeu":
-                if event.key == pygame.K_e: ETAT_JEU = "inventaire"
-                elif event.key == CONFIG_TOUCHES["ANNULER"] or event.key == pygame.K_ESCAPE: ETAT_JEU = "menu"
+                if event.key == pygame.K_e:
+                    ETAT_JEU = "inventaire"
+                elif event.key == CONFIG_TOUCHES["ANNULER"] or event.key == pygame.K_ESCAPE:
+                    sauvegarder_slot(selection_fichier + 1)
+                    ETAT_JEU = "menu"
 
             elif ETAT_JEU == "inventaire":
                 if event.key in (pygame.K_e, CONFIG_TOUCHES["ANNULER"], pygame.K_ESCAPE): ETAT_JEU = "jeu"
