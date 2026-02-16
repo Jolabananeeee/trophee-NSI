@@ -1,6 +1,20 @@
 import pygame
 import sys
 import os
+import json
+import random
+from datetime import datetime
+
+
+
+SAVE_DIR = os.path.join(os.getenv("LOCALAPPDATA") or os.path.expanduser("~"), "LinkExe")
+
+if not os.path.exists(SAVE_DIR):
+    os.makedirs(SAVE_DIR)
+
+def chemin_slot(slot):
+    return os.path.join(SAVE_DIR, f"save_slot_{slot}.json")
+
 
 try:
     from menu import afficher_menu, gerer_menu
@@ -20,6 +34,8 @@ ROUGE = (200, 0, 0)
 GRIS = (180, 180, 180)
 BLEU_NUIT = (10, 10, 30)
 JAUNE = (1, 54, 78)
+ROSE = (255, 100, 150)
+FRAMES_30_SECONDES = FPS * 30
 
 ecran = pygame.display.set_mode((LARGEUR, HAUTEUR))
 pygame.display.set_caption("Link.exe")
@@ -98,7 +114,8 @@ selection_parametre = 0
 en_attente_touche = False
 cle_a_modifier = None
 
-# --- CREATION OBJETS (DICTIONNAIRES) ---
+# Variables pour items ...
+timer_coeur = [FRAMES_30_SECONDES]
 
 def creer_joueur():
     return {
@@ -159,7 +176,11 @@ def deplacer_ennemi(ennemi):
 def dessiner_ennemi(ennemi):
     pygame.draw.rect(ecran, ROUGE, ennemi["rect"])
 
-# --- AFFICHAGE ---
+def creer_heal_coeur(x, y):
+    return {
+        "rect": pygame.Rect(300, 200, 30, 30),
+        "active": True
+    }
 
 def afficher_menu_local():
     global index_bg_actuel, dernier_changement_bg
@@ -219,6 +240,29 @@ def afficher_selection_fichier():
         pygame.draw.line(ecran, couleur_bord, (ligne_x, y_ligne1), (rect_slot.right, y_ligne1), 1)
         y_ligne2 = y_ligne1 + 32
         pygame.draw.line(ecran, couleur_bord, (ligne_x, y_ligne2), (rect_slot.right, y_ligne2), 1)
+
+        slot_num = i + 1
+        path = chemin_slot(slot_num)
+
+        if os.path.exists(path):
+            try:
+                with open(path, "r") as f:
+                    data = json.load(f)
+
+                vies = data.get("joueur", {}).get("vies", "?")
+                date = data.get("timestamp", "--/-- --:--")
+
+                texte_info = f"vies : {vies} | {date}"
+
+
+            except:
+                texte_info = "CORROMPUE"
+
+        else:
+            texte_info = "VIDE"
+
+        info_surface = police_texte.render(texte_info, True, GRIS)
+        ecran.blit(info_surface, (rect_slot.x + 200, ligne_y + 10))
 
     nom_touche = pygame.key.name(CONFIG_TOUCHES['CONFIRMER']).upper()
     nom_retour = pygame.key.name(CONFIG_TOUCHES['ANNULER']).upper()
@@ -411,6 +455,57 @@ def afficher_personne(nom, role):
 
 joueur = creer_joueur()
 ennemi = creer_ennemi()
+coeur = creer_heal_coeur(300, 200)
+
+def sauvegarder_slot(slot):
+    data = {
+        "joueur": {
+            "x": joueur["rect"].x,
+            "y": joueur["rect"].y,
+            "vies": joueur["vies"]
+        },
+        "touches": CONFIG_TOUCHES,
+        "config_jeu": CONFIG_JEU,
+        "timestamp": datetime.now().strftime("%d/%m %H:%M")
+    }
+
+    with open(chemin_slot(slot), "w") as f:
+        json.dump(data, f, indent=4)
+
+
+
+def charger_slot(slot):
+    global CONFIG_TOUCHES, CONFIG_JEU
+
+    path = chemin_slot(slot)
+
+    # Si le fichier n'existe pas → nouvelle partie
+    if not os.path.exists(path):
+        joueur["rect"].topleft = (380, 280)
+        joueur["vies"] = vie_max
+        return
+
+    try:
+        with open(path, "r") as f:
+            data = json.load(f)
+
+        # Vérification sécurité
+        if "joueur" not in data:
+            raise ValueError("Sauvegarde invalide")
+
+        joueur["rect"].x = data["joueur"]["x"]
+        joueur["rect"].y = data["joueur"]["y"]
+        joueur["vies"] = data["joueur"]["vies"]
+
+        CONFIG_TOUCHES = data.get("touches", CONFIG_TOUCHES)
+        CONFIG_JEU = data.get("config_jeu", CONFIG_JEU)
+
+    except Exception:
+        # Si la sauvegarde est corrompue
+        joueur["rect"].topleft = (380, 280)
+        joueur["vies"] = vie_max
+
+
 
 while True:
     clock.tick(FPS)
@@ -477,12 +572,19 @@ while True:
             elif ETAT_JEU == "selection_fichier":
                 if event.key == pygame.K_UP: selection_fichier = (selection_fichier - 1) % 3
                 if event.key == pygame.K_DOWN: selection_fichier = (selection_fichier + 1) % 3
-                if event.key == CONFIG_TOUCHES["CONFIRMER"]: ETAT_JEU = "jeu"
+                if event.key == CONFIG_TOUCHES["CONFIRMER"]:
+                    charger_slot(selection_fichier + 1)
+                    ETAT_JEU = "jeu"
                 if event.key == CONFIG_TOUCHES["ANNULER"] or event.key == pygame.K_ESCAPE: ETAT_JEU = "menu"
 
             elif ETAT_JEU == "jeu":
-                if event.key == pygame.K_e: ETAT_JEU = "inventaire"
-                elif event.key == CONFIG_TOUCHES["ANNULER"] or event.key == pygame.K_ESCAPE: ETAT_JEU = "menu"
+                if event.key == pygame.K_e:
+                    ETAT_JEU = "inventaire"
+                elif event.key == CONFIG_TOUCHES["ANNULER"] or event.key == pygame.K_ESCAPE:
+                    sauvegarder_slot(selection_fichier + 1)
+                    ETAT_JEU = "menu"
+                
+                
 
             elif ETAT_JEU == "inventaire":
                 if event.key in (pygame.K_e, CONFIG_TOUCHES["ANNULER"], pygame.K_ESCAPE): ETAT_JEU = "jeu"
@@ -526,6 +628,25 @@ while True:
         
         if joueur["vies"] <= 0:
             ETAT_JEU = "game_over"
+        
+        if coeur["active"] and joueur["rect"].colliderect(coeur["rect"]):
+            joueur["vies"] = min(joueur["vies"] + 1, vie_max)
+            coeur["active"] = False
+        
+        if not coeur["active"]:
+            timer_coeur[0] -= 1
+            
+            if timer_coeur[0] <= 0:
+                coeur["rect"].x = random.randint(50, LARGEUR - 80)
+                coeur["rect"].y = random.randint(50, HAUTEUR - 80)
+                coeur["active"] = True
+
+                timer_coeur[0] = FRAMES_30_SECONDES
+
+            if coeur["active"] and joueur["rect"].colliderect(coeur["rect"]):
+                if joueur["vies"] < vie_max:
+                    joueur["vies"] += 1
+                    coeur["active"] = False
 
     if ETAT_JEU == "menu":
         afficher_menu_local()
@@ -542,6 +663,8 @@ while True:
         afficher_et_gerer_attaque(joueur, ennemi)
         dessiner_ennemi(ennemi)
         afficher_coeurs(joueur)
+        if coeur["active"]:
+            pygame.draw.rect(ecran, ROSE, coeur["rect"])
         
     elif ETAT_JEU == "inventaire":
         ecran.fill(NOIR)
