@@ -87,6 +87,10 @@ titre_img = charger_image("assets/titre.png", taille=(300, 100), transparence=Tr
 bg1 = charger_image("assets/bg1.png", (LARGEUR, HAUTEUR), transparence=False)
 bg2 = charger_image("assets/bg2.png", (LARGEUR, HAUTEUR), transparence=False)
 img_main = charger_image("assets/main.png", (25, 20), transparence=True)
+joueur_img = charger_image("assets/joueur.png", (64, 128), transparence=True)
+
+VUE_DEVANT_JOUEUR = pygame.Rect(0, 0, 64, 64)  
+VUE_ARRIERE_JOUEUR = pygame.Rect(0, 64, 64, 64)
 
 liste_fonds = [bg1, bg2]
 index_bg_actuel = 0
@@ -119,7 +123,7 @@ timer_coeur = [FRAMES_30_SECONDES]
 
 def creer_joueur():
     return {
-        "rect": pygame.Rect(380, 280, 40, 40),
+        "rect": pygame.Rect(380, 280, 64, 64),
         "vitesse": 5,
         "vies": vie_max,
         "invincible": 0,
@@ -154,8 +158,26 @@ def deplacer_joueur(joueur):
     joueur["rect"].clamp_ip(ecran.get_rect())
 
 def dessiner_joueur(joueur):
-    pygame.draw.rect(ecran, VERT, joueur["rect"])
+    if joueur["direction"] == "HAUT":
+        zone = VUE_ARRIERE_JOUEUR
+        miroir = False
+    elif joueur["direction"] == "BAS":
+        zone = VUE_DEVANT_JOUEUR
+        miroir = False
+    elif joueur["direction"] == "GAUCHE":
+        zone = VUE_DEVANT_JOUEUR
+        miroir = True  
+    elif joueur["direction"] == "DROITE":
+        zone = VUE_DEVANT_JOUEUR
+        miroir = False
 
+    image_a_afficher = joueur_img.subsurface(zone)
+
+    if miroir:
+        image_a_afficher = pygame.transform.flip(image_a_afficher, True, False)
+
+    if joueur["invincible"] % 10 < 5:
+        ecran.blit(image_a_afficher, joueur["rect"])
 
 def creer_ennemi():
     return {
