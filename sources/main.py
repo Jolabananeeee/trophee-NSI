@@ -3,6 +3,7 @@ import sys
 import os
 import json
 from datetime import datetime
+import pytmx
 
 
 # --- DOSSIER DE SAUVEGARDE LOCAL ---
@@ -34,9 +35,16 @@ GRIS = (180, 180, 180)
 BLEU_NUIT = (10, 10, 30)
 JAUNE = (1, 54, 78)
 
+FACTOR = 3
+
 ecran = pygame.display.set_mode((LARGEUR, HAUTEUR))
 pygame.display.set_caption("Link.exe")
 clock = pygame.time.Clock()
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+tmx_path = os.path.join(BASE_DIR, "maps", "ile_de_depart.tmx")
+
+tmx_data = pytmx.load_pygame(tmx_path)
 
 # --- CONFIGURATION ---
 CONFIG_TOUCHES = {
@@ -115,8 +123,8 @@ cle_a_modifier = None
 
 def creer_joueur():
     return {
-        "rect": pygame.Rect(380, 280, 40, 40),
-        "vitesse": 5,
+        "rect": pygame.Rect(380, 280, 24, 24),
+        "vitesse": 3,
         "vies": vie_max,
         "invincible": 0,
         "direction": "BAS",
@@ -147,7 +155,6 @@ def deplacer_joueur(joueur):
         joueur["rect"].x += dx
         joueur["rect"].y += dy
         
-    joueur["rect"].clamp_ip(ecran.get_rect())
 
 def dessiner_joueur(joueur):
     pygame.draw.rect(ecran, VERT, joueur["rect"])
@@ -155,7 +162,7 @@ def dessiner_joueur(joueur):
 
 def creer_ennemi():
     return {
-        "rect": pygame.Rect(200, 150, 40, 40),
+        "rect": pygame.Rect(200, 150, 24, 24),
         "vx": 3,
         "vy": 3
     }
@@ -449,7 +456,17 @@ def afficher_personne(nom, role):
     nom_retour = pygame.key.name(CONFIG_TOUCHES['ANNULER']).upper()
     ecran.blit(police_aide.render(f"{nom_retour} : retour", True, GRIS), (50, 350))
 
+def spawn_depuis_tiled():
+    for obj in tmx_data.objects:
+        if obj.name == "spawn":
+            return obj.x, obj.y
+    return 380, 280  # fallback
+
+x_spawn, y_spawn = spawn_depuis_tiled()
 joueur = creer_joueur()
+joueur["rect"].topleft = (x_spawn, y_spawn)
+
+
 ennemi = creer_ennemi()
 
 def sauvegarder_slot(slot):
@@ -500,6 +517,56 @@ def charger_slot(slot):
         joueur["rect"].topleft = (380, 280)
         joueur["vies"] = vie_max
 
+def dessiner_map(camera_x, camera_y):
+
+    # --- Tile Layers ---
+    for layer in tmx_data.visible_layers:
+        if hasattr(layer, "data"):  # Vérifie que c'est un Tile Layer
+
+            for x, y, gid in layer:
+                if gid != 0:
+                    tile = tmx_data.get_tile_image_by_gid(gid)
+
+                    if tile:
+                        image_scaled = pygame.transform.scale(
+                            tile,
+                            (
+                                tmx_data.tilewidth * FACTOR,
+                                tmx_data.tileheight * FACTOR
+                            )
+                        )
+
+                        ecran.blit(
+                            image_scaled,
+                            (
+                                x * tmx_data.tilewidth * FACTOR - camera_x,
+                                y * tmx_data.tileheight * FACTOR - camera_y
+                            )
+                        )
+
+    # --- Object Layers ---
+    for obj in tmx_data.objects:
+        if obj.visible and obj.image:
+            image_scaled = pygame.transform.scale(
+                obj.image,
+                (
+                    int(obj.width * FACTOR),
+                    int(obj.height * FACTOR)
+                )
+            )
+
+            ecran.blit(
+                image_scaled,
+                (
+                    obj.x * FACTOR - camera_x,
+                    obj.y * FACTOR - camera_y - obj.height * FACTOR
+                )
+            )
+
+camera_x, camera_y = 0, 0
+
+for obj in tmx_data.objects:
+    print(obj.name, obj.type, obj.image)
 
 
 while True:
@@ -573,6 +640,15 @@ while True:
                 if event.key == CONFIG_TOUCHES["ANNULER"] or event.key == pygame.K_ESCAPE: ETAT_JEU = "menu"
 
             elif ETAT_JEU == "jeu":
+                camera_x = joueur["rect"].centerx - LARGEUR // 2
+                camera_y = joueur["rect"].centery - HAUTEUR // 2
+
+                # Clamp caméra
+                map_width = tmx_data.width * tmx_data.tilewidth * FACTOR
+                map_height = tmx_data.height * tmx_data.tileheight * FACTOR
+                camera_x = max(0, min(camera_x, map_width - LARGEUR))
+                camera_y = max(0, min(camera_y, map_height - HAUTEUR))
+
                 if event.key == pygame.K_e:
                     ETAT_JEU = "inventaire"
                 elif event.key == CONFIG_TOUCHES["ANNULER"] or event.key == pygame.K_ESCAPE:
@@ -632,8 +708,27 @@ while True:
     elif ETAT_JEU == "selection_fichier": afficher_selection_fichier()
     
     elif ETAT_JEU == "jeu":
+        # Calcul caméra
+        camera_x = joueur["rect"].centerx - LARGEUR // 2
+        camera_y = joueur["rect"].centery - HAUTEUR // 2
+
         ecran.fill(NOIR)
-        dessiner_joueur(joueur)
+
+        # Dessiner la map
+        dessiner_map(camera_x, camera_y)
+
+        # Dessiner le joueur au centre
+        joueur_rect_screen = joueur["rect"].copy()
+        joueur_rect_screen.center = (LARGEUR // 2, HAUTEUR // 2)
+        pygame.draw.rect(ecran, VERT, joueur_rect_screen)
+
+        map_width = tmx_data.width * tmx_data.tilewidth
+        map_height = tmx_data.height * tmx_data.tileheight
+
+        camera_x = max(0, min(camera_x, map_width - LARGEUR))
+        camera_y = max(0, min(camera_y, map_height - HAUTEUR))
+
+
         afficher_et_gerer_attaque(joueur, ennemi)
         dessiner_ennemi(ennemi)
         afficher_coeurs(joueur)
