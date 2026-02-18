@@ -2,11 +2,12 @@ import pygame
 import sys
 import os
 import json
+import random
 from datetime import datetime
 import pytmx
 
 
-# --- DOSSIER DE SAUVEGARDE LOCAL ---
+
 SAVE_DIR = os.path.join(os.getenv("LOCALAPPDATA") or os.path.expanduser("~"), "LinkExe")
 
 if not os.path.exists(SAVE_DIR):
@@ -36,6 +37,8 @@ BLEU_NUIT = (10, 10, 30)
 JAUNE = (1, 54, 78)
 
 FACTOR = 3
+ROSE = (255, 100, 150)
+FRAMES_30_SECONDES = FPS * 30
 
 ecran = pygame.display.set_mode((LARGEUR, HAUTEUR))
 pygame.display.set_caption("Link.exe")
@@ -92,6 +95,10 @@ titre_img = charger_image("assets/titre.png", taille=(300, 100), transparence=Tr
 bg1 = charger_image("assets/bg1.png", (LARGEUR, HAUTEUR), transparence=False)
 bg2 = charger_image("assets/bg2.png", (LARGEUR, HAUTEUR), transparence=False)
 img_main = charger_image("assets/main.png", (25, 20), transparence=True)
+joueur_img = charger_image("assets/joueur.png", (64, 128), transparence=True)
+
+VUE_DEVANT_JOUEUR = pygame.Rect(0, 0, 64, 64)  
+VUE_ARRIERE_JOUEUR = pygame.Rect(0, 64, 64, 64)
 
 liste_fonds = [bg1, bg2]
 index_bg_actuel = 0
@@ -119,12 +126,13 @@ selection_parametre = 0
 en_attente_touche = False
 cle_a_modifier = None
 
-# --- CREATION OBJETS (DICTIONNAIRES) ---
+# Variables pour items ...
+timer_coeur = [FRAMES_30_SECONDES]
 
 def creer_joueur():
     return {
-        "rect": pygame.Rect(380, 280, 24, 24),
-        "vitesse": 3,
+        "rect": pygame.Rect(380, 280, 40, 40),
+        "vitesse": 5,
         "vies": vie_max,
         "invincible": 0,
         "direction": "BAS",
@@ -157,8 +165,26 @@ def deplacer_joueur(joueur):
         
 
 def dessiner_joueur(joueur):
-    pygame.draw.rect(ecran, VERT, joueur["rect"])
+    if joueur["direction"] == "HAUT":
+        zone = VUE_ARRIERE_JOUEUR
+        miroir = False
+    elif joueur["direction"] == "BAS":
+        zone = VUE_DEVANT_JOUEUR
+        miroir = False
+    elif joueur["direction"] == "GAUCHE":
+        zone = VUE_DEVANT_JOUEUR
+        miroir = True  
+    elif joueur["direction"] == "DROITE":
+        zone = VUE_DEVANT_JOUEUR
+        miroir = False
 
+    image_a_afficher = joueur_img.subsurface(zone)
+
+    if miroir:
+        image_a_afficher = pygame.transform.flip(image_a_afficher, True, False)
+
+    if joueur["invincible"] % 10 < 5:
+        ecran.blit(image_a_afficher, joueur["rect"])
 
 def creer_ennemi():
     return {
@@ -179,7 +205,11 @@ def deplacer_ennemi(ennemi):
 def dessiner_ennemi(ennemi):
     pygame.draw.rect(ecran, ROUGE, ennemi["rect"])
 
-# --- AFFICHAGE ---
+def creer_heal_coeur(x, y):
+    return {
+        "rect": pygame.Rect(300, 200, 30, 30),
+        "active": True
+    }
 
 def afficher_menu_local():
     global index_bg_actuel, dernier_changement_bg
@@ -262,10 +292,6 @@ def afficher_selection_fichier():
 
         info_surface = police_texte.render(texte_info, True, GRIS)
         ecran.blit(info_surface, (rect_slot.x + 200, ligne_y + 10))
-
-
-
-
 
     nom_touche = pygame.key.name(CONFIG_TOUCHES['CONFIRMER']).upper()
     nom_retour = pygame.key.name(CONFIG_TOUCHES['ANNULER']).upper()
@@ -468,6 +494,7 @@ joueur["rect"].topleft = (x_spawn, y_spawn)
 
 
 ennemi = creer_ennemi()
+coeur = creer_heal_coeur(300, 200)
 
 def sauvegarder_slot(slot):
     data = {
@@ -654,6 +681,8 @@ while True:
                 elif event.key == CONFIG_TOUCHES["ANNULER"] or event.key == pygame.K_ESCAPE:
                     sauvegarder_slot(selection_fichier + 1)
                     ETAT_JEU = "menu"
+                
+                
 
             elif ETAT_JEU == "inventaire":
                 if event.key in (pygame.K_e, CONFIG_TOUCHES["ANNULER"], pygame.K_ESCAPE): ETAT_JEU = "jeu"
@@ -697,6 +726,25 @@ while True:
         
         if joueur["vies"] <= 0:
             ETAT_JEU = "game_over"
+        
+        if coeur["active"] and joueur["rect"].colliderect(coeur["rect"]):
+            joueur["vies"] = min(joueur["vies"] + 1, vie_max)
+            coeur["active"] = False
+        
+        if not coeur["active"]:
+            timer_coeur[0] -= 1
+            
+            if timer_coeur[0] <= 0:
+                coeur["rect"].x = random.randint(50, LARGEUR - 80)
+                coeur["rect"].y = random.randint(50, HAUTEUR - 80)
+                coeur["active"] = True
+
+                timer_coeur[0] = FRAMES_30_SECONDES
+
+            if coeur["active"] and joueur["rect"].colliderect(coeur["rect"]):
+                if joueur["vies"] < vie_max:
+                    joueur["vies"] += 1
+                    coeur["active"] = False
 
     if ETAT_JEU == "menu":
         afficher_menu_local()
@@ -732,6 +780,8 @@ while True:
         afficher_et_gerer_attaque(joueur, ennemi)
         dessiner_ennemi(ennemi)
         afficher_coeurs(joueur)
+        if coeur["active"]:
+            pygame.draw.rect(ecran, ROSE, coeur["rect"])
         
     elif ETAT_JEU == "inventaire":
         ecran.fill(NOIR)

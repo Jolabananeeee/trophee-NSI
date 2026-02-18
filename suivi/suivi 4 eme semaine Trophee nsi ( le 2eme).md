@@ -28,7 +28,7 @@ Lancement : main.py
 
 📊 État d'avancement (Journal de bord)
 Semaine 4 ajouts:
-Joe: ajout d'arme dans le jeu, changement des class vers des listes, config menu (ia utilisé)
+Joe: ajout d'arme dans le jeu, changement des class vers des listes (ia utilisé pour les changements), debut du heal (creation de la liste pas version definitive)
 Julien: Avancer sur la map global ( pas sur le github mais en cours de construction), creation du menu et du systeme de sauvegarde ( utilisation partielle de l'ia)
 Aleksy: Avancer sur la map, creation du menu et images de fonds (pas definitives)
 Ivana: debut de la creation des personnages
