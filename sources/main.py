@@ -132,39 +132,47 @@ timer_coeur = [FRAMES_30_SECONDES]
 def creer_joueur():
     return {
         "rect": pygame.Rect(380, 280, 40, 40),
-        "vitesse": 5,
+        "vitesse": 3,
         "vies": vie_max,
         "invincible": 0,
         "direction": "BAS",
         "timer_attaque": 0
     }
 
+
+# --- Déplacement joueur ---
 def deplacer_joueur(joueur):
     if joueur["timer_attaque"] > 0:
         joueur["timer_attaque"] -= 1
         return
-    
+
     touches = pygame.key.get_pressed()
     dx, dy = 0, 0
-    
-   
-    if touches[CONFIG_TOUCHES["GAUCHE"]]: dx = -joueur["vitesse"]; joueur["direction"] = "GAUCHE"
-    if touches[CONFIG_TOUCHES["DROITE"]]: dx = joueur["vitesse"]; joueur["direction"] = "DROITE"
-    if touches[CONFIG_TOUCHES["HAUT"]]: dy = -joueur["vitesse"]; joueur["direction"] = "HAUT"
-    if touches[CONFIG_TOUCHES["BAS"]]: dy = joueur["vitesse"]; joueur["direction"] = "BAS"
-    
+
+    if touches[CONFIG_TOUCHES["GAUCHE"]]:
+        dx -= joueur["vitesse"]
+        joueur["direction"] = "GAUCHE"
+    if touches[CONFIG_TOUCHES["DROITE"]]:
+        dx += joueur["vitesse"]
+        joueur["direction"] = "DROITE"
+    if touches[CONFIG_TOUCHES["HAUT"]]:
+        dy -= joueur["vitesse"]
+        joueur["direction"] = "HAUT"
+    if touches[CONFIG_TOUCHES["BAS"]]:
+        dy += joueur["vitesse"]
+        joueur["direction"] = "BAS"
+
     if touches[CONFIG_TOUCHES["TOUCHER"]]:
         joueur["timer_attaque"] = FPS // 4
 
-    if touches[CONFIG_TOUCHES["COURIR"]]:
-        joueur["rect"].x += dx * 2
-        joueur["rect"].y += dy * 2
-    else:
-        joueur["rect"].x += dx
-        joueur["rect"].y += dy
-        
+    # Course
+    facteur = 2 if touches[CONFIG_TOUCHES["COURIR"]] else 1
+    joueur["rect"].x += dx * facteur
+    joueur["rect"].y += dy * facteur
 
-def dessiner_joueur(joueur):
+
+# --- Dessin joueur ---
+def dessiner_joueur(joueur, camera_x, camera_y):
     if joueur["direction"] == "HAUT":
         zone = VUE_ARRIERE_JOUEUR
         miroir = False
@@ -173,37 +181,62 @@ def dessiner_joueur(joueur):
         miroir = False
     elif joueur["direction"] == "GAUCHE":
         zone = VUE_DEVANT_JOUEUR
-        miroir = True  
+        miroir = True
     elif joueur["direction"] == "DROITE":
         zone = VUE_DEVANT_JOUEUR
         miroir = False
 
     image_a_afficher = joueur_img.subsurface(zone)
-
     if miroir:
         image_a_afficher = pygame.transform.flip(image_a_afficher, True, False)
 
+    # Application du FACTOR aux coordonnées pour correspondre à la map
+    rect_screen_x = joueur["rect"].x * FACTOR - camera_x
+    rect_screen_y = joueur["rect"].y * FACTOR - camera_y
+
     if joueur["invincible"] % 10 < 5:
-        ecran.blit(image_a_afficher, joueur["rect"])
+        ecran.blit(image_a_afficher, (rect_screen_x, rect_screen_y))
+
 
 def creer_ennemi():
     return {
         "rect": pygame.Rect(200, 150, 24, 24),
-        "vx": 3,
-        "vy": 3
+        "vx": 1,
+        "vy": 1
     }
 
+# --- Déplacement ennemi ---
 def deplacer_ennemi(ennemi):
+    map_width = tmx_data.width * tmx_data.tilewidth
+    map_height = tmx_data.height * tmx_data.tileheight
+
     ennemi["rect"].x += ennemi["vx"]
-    ennemi["rect"].y += ennemi["vy"]
-    
-    if ennemi["rect"].left <= 0 or ennemi["rect"].right >= LARGEUR:
+    if ennemi["rect"].left < 0:
+        ennemi["rect"].left = 0
         ennemi["vx"] = -ennemi["vx"]
-    if ennemi["rect"].top <= 0 or ennemi["rect"].bottom >= HAUTEUR:
+    elif ennemi["rect"].right > map_width:
+        ennemi["rect"].right = map_width
+        ennemi["vx"] = -ennemi["vx"]
+
+    ennemi["rect"].y += ennemi["vy"]
+    if ennemi["rect"].top < 0:
+        ennemi["rect"].top = 0
+        ennemi["vy"] = -ennemi["vy"]
+    elif ennemi["rect"].bottom > map_height:
+        ennemi["rect"].bottom = map_height
         ennemi["vy"] = -ennemi["vy"]
 
-def dessiner_ennemi(ennemi):
-    pygame.draw.rect(ecran, ROUGE, ennemi["rect"])
+
+# --- Dessin ennemi ---
+def dessiner_ennemi(ennemi, camera_x, camera_y):
+    rect_screen = ennemi["rect"].copy()
+    # On met à l'échelle la position ET la taille
+    rect_screen.x = ennemi["rect"].x * FACTOR - camera_x
+    rect_screen.y = ennemi["rect"].y * FACTOR - camera_y
+    rect_screen.width *= FACTOR
+    rect_screen.height *= FACTOR
+    pygame.draw.rect(ecran, ROUGE, rect_screen)
+
 
 def creer_heal_coeur(x, y):
     return {
@@ -298,27 +331,31 @@ def afficher_selection_fichier():
     txt_aide = police_aide.render(f"{nom_touche} : CHARGER — {nom_retour} : RETOUR", True, GRIS)
     ecran.blit(txt_aide, txt_aide.get_rect(center=(LARGEUR // 2, HAUTEUR - 30)))
 
-def afficher_et_gerer_attaque(joueur, ennemi):
+# --- Attaque ---
+def afficher_et_gerer_attaque(joueur, ennemi, camera_x, camera_y, ecran):
     if joueur["timer_attaque"] > 0:
-        rect_epee = pygame.Rect(0, 0, 0, 0)
-        taille_lame = 30
+        joueur["timer_attaque"] -= 1
         
+        epee_logique = pygame.Rect(0, 0, 20, 20) 
         if joueur["direction"] == "HAUT":
-            rect_epee = pygame.Rect(joueur["rect"].centerx - 5, joueur["rect"].top - taille_lame, 10, taille_lame)
+            epee_logique.midbottom = joueur["rect"].midtop
         elif joueur["direction"] == "BAS":
-            rect_epee = pygame.Rect(joueur["rect"].centerx - 5, joueur["rect"].bottom, 10, taille_lame)
+            epee_logique.midtop = joueur["rect"].midbottom
         elif joueur["direction"] == "GAUCHE":
-            rect_epee = pygame.Rect(joueur["rect"].left - taille_lame, joueur["rect"].centery - 5, taille_lame, 10)
+            epee_logique.midright = joueur["rect"].midleft
         elif joueur["direction"] == "DROITE":
-            rect_epee = pygame.Rect(joueur["rect"].right, joueur["rect"].centery - 5, taille_lame, 10)
-            
-        pygame.draw.rect(ecran, JAUNE, rect_epee)
-        
-        if rect_epee.colliderect(ennemi["rect"]):
-            import random
-            ennemi["rect"].x = random.randint(0, LARGEUR - 40)
-            ennemi["rect"].y = random.randint(0, HAUTEUR - 40)
-           
+            epee_logique.midleft = joueur["rect"].midright
+
+        epee_visuel = pygame.Rect(
+            epee_logique.x * FACTOR - camera_x,
+            epee_logique.y * FACTOR - camera_y,
+            epee_logique.width * FACTOR,
+            epee_logique.height * FACTOR
+        )
+        pygame.draw.rect(ecran, (200, 200, 200), epee_visuel)
+
+        if epee_logique.colliderect(ennemi["rect"]):
+            ennemi["rect"].x += 50 
 
 def dessiner_touche(x, y, texte, couleur=BLANC, est_selectionne=False):
     surf = police_texte.render(texte, True, couleur)
@@ -667,23 +704,32 @@ while True:
                 if event.key == CONFIG_TOUCHES["ANNULER"] or event.key == pygame.K_ESCAPE: ETAT_JEU = "menu"
 
             elif ETAT_JEU == "jeu":
-                camera_x = joueur["rect"].centerx - LARGEUR // 2
-                camera_y = joueur["rect"].centery - HAUTEUR // 2
+                map_width_scaled = tmx_data.width * tmx_data.tilewidth * FACTOR
+                map_height_scaled = tmx_data.height * tmx_data.tileheight * FACTOR
 
-                # Clamp caméra
-                map_width = tmx_data.width * tmx_data.tilewidth * FACTOR
-                map_height = tmx_data.height * tmx_data.tileheight * FACTOR
-                camera_x = max(0, min(camera_x, map_width - LARGEUR))
-                camera_y = max(0, min(camera_y, map_height - HAUTEUR))
+                camera_x = joueur["rect"].centerx * FACTOR - LARGEUR // 2
+                camera_y = joueur["rect"].centery * FACTOR - HAUTEUR // 2
 
-                if event.key == pygame.K_e:
-                    ETAT_JEU = "inventaire"
-                elif event.key == CONFIG_TOUCHES["ANNULER"] or event.key == pygame.K_ESCAPE:
-                    sauvegarder_slot(selection_fichier + 1)
-                    ETAT_JEU = "menu"
+                camera_x = max(0, min(camera_x, map_width_scaled - LARGEUR))
+                camera_y = max(0, min(camera_y, map_height_scaled - HAUTEUR))
+
+                ecran.fill(NOIR)
+
+                dessiner_map(camera_x, camera_y)
+
+                dessiner_joueur(joueur, camera_x, camera_y)
+                afficher_et_gerer_attaque(joueur, ennemi, camera_x, camera_y, ecran)
+                dessiner_ennemi(ennemi, camera_x, camera_y)
                 
-                
-
+                if coeur["active"]:
+                    coeur_screen = coeur["rect"].copy()
+                    coeur_screen.x = coeur["rect"].x * FACTOR - camera_x
+                    coeur_screen.y = coeur["rect"].y * FACTOR - camera_y
+                    coeur_screen.width *= FACTOR
+                    coeur_screen.height *= FACTOR
+                    pygame.draw.rect(ecran, ROSE, coeur_screen)
+                    
+                afficher_coeurs(joueur)    
             elif ETAT_JEU == "inventaire":
                 if event.key in (pygame.K_e, CONFIG_TOUCHES["ANNULER"], pygame.K_ESCAPE): ETAT_JEU = "jeu"
 
@@ -735,16 +781,15 @@ while True:
             timer_coeur[0] -= 1
             
             if timer_coeur[0] <= 0:
-                coeur["rect"].x = random.randint(50, LARGEUR - 80)
-                coeur["rect"].y = random.randint(50, HAUTEUR - 80)
+                # On utilise les dimensions de la map d'origine (non zoomée)
+                map_width_unscaled = tmx_data.width * tmx_data.tilewidth
+                map_height_unscaled = tmx_data.height * tmx_data.tileheight
+                
+                coeur["rect"].x = random.randint(50, map_width_unscaled - 50)
+                coeur["rect"].y = random.randint(50, map_height_unscaled - 50)
                 coeur["active"] = True
 
                 timer_coeur[0] = FRAMES_30_SECONDES
-
-            if coeur["active"] and joueur["rect"].colliderect(coeur["rect"]):
-                if joueur["vies"] < vie_max:
-                    joueur["vies"] += 1
-                    coeur["active"] = False
 
     if ETAT_JEU == "menu":
         afficher_menu_local()
@@ -757,8 +802,8 @@ while True:
     
     elif ETAT_JEU == "jeu":
         # Calcul caméra
-        camera_x = joueur["rect"].centerx - LARGEUR // 2
-        camera_y = joueur["rect"].centery - HAUTEUR // 2
+        camera_x = joueur["rect"].centerx * FACTOR - LARGEUR // 2
+        camera_y = joueur["rect"].centery * FACTOR - HAUTEUR // 2
 
         ecran.fill(NOIR)
 
@@ -777,8 +822,8 @@ while True:
         camera_y = max(0, min(camera_y, map_height - HAUTEUR))
 
 
-        afficher_et_gerer_attaque(joueur, ennemi)
-        dessiner_ennemi(ennemi)
+        afficher_et_gerer_attaque(joueur, ennemi, camera_x, camera_y, ecran)
+        dessiner_ennemi(ennemi, camera_x, camera_y)
         afficher_coeurs(joueur)
         if coeur["active"]:
             pygame.draw.rect(ecran, ROSE, coeur["rect"])
