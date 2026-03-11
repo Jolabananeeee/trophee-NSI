@@ -813,7 +813,8 @@ while True:
         # Dessiner le joueur au centre
         joueur_rect_screen = joueur["rect"].copy()
         joueur_rect_screen.center = (LARGEUR // 2, HAUTEUR // 2)
-        pygame.draw.rect(ecran, VERT, joueur_rect_screen)
+        dessiner_joueur(joueur, camera_x, camera_y)
+        
 
         map_width = tmx_data.width * tmx_data.tilewidth
         map_height = tmx_data.height * tmx_data.tileheight
