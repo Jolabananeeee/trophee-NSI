@@ -49,6 +49,24 @@ tmx_path = os.path.join(BASE_DIR, "maps", "ile_de_depart.tmx")
 
 tmx_data = pytmx.load_pygame(tmx_path)
 
+# --- COLLISIONS TILED ---
+collisions = []
+
+for layer in tmx_data.visible_layers:
+    if hasattr(layer, "data"):
+        for x, y, gid in layer:
+            if gid != 0:
+                props = tmx_data.get_tile_properties_by_gid(gid)
+
+                if props and props.get("solide"):
+                    rect = pygame.Rect(
+                        x * tmx_data.tilewidth,
+                        y * tmx_data.tileheight,
+                        tmx_data.tilewidth,
+                        tmx_data.tileheight
+                    )
+                    collisions.append(rect)
+
 # --- CONFIGURATION ---
 CONFIG_TOUCHES = {
     "HAUT": pygame.K_UP,
@@ -164,6 +182,28 @@ def deplacer_joueur(joueur):
 
     if touches[CONFIG_TOUCHES["TOUCHER"]]:
         joueur["timer_attaque"] = FPS // 4
+
+    facteur = 2 if touches[CONFIG_TOUCHES["COURIR"]] else 1
+
+# --- Collision X ---
+    joueur["rect"].x += dx * facteur
+    for mur in collisions:
+        if joueur["rect"].colliderect(mur):
+            if dx > 0:
+                joueur["rect"].right = mur.left
+            elif dx < 0:
+                joueur["rect"].left = mur.right
+            break
+
+    # --- Collision Y ---
+    joueur["rect"].y += dy * facteur
+    for mur in collisions:
+        if joueur["rect"].colliderect(mur):
+            if dy > 0:
+                joueur["rect"].bottom = mur.top
+            elif dy < 0:
+                joueur["rect"].top = mur.bottom
+            break
 
     # Course
     facteur = 2 if touches[CONFIG_TOUCHES["COURIR"]] else 1
